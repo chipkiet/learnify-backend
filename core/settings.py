@@ -70,7 +70,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'learnify_db',
         'USER': 'learnify_user',
-        'PASSWORD': 'learnify_password',
+        'PASSWORD': 'quetvaque700716',
         'HOST': 'db',
         'PORT': '5432',
     }
@@ -101,3 +101,5 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
 }
+
+AUTH_USER_MODEL = 'users.User'
