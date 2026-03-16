@@ -5,7 +5,12 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model, authenticate
 
-from apps.users.serializers.auth_serializers import ( RegisterSerializer, LoginSerializer, ChangePasswordSerializer)
+from apps.users.serializers.auth_serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    ChangePasswordSerializer,
+    ProfileSerializer,
+)
 
 User = get_user_model()
 
@@ -52,7 +57,7 @@ class ChangePasswordView(APIView) :
         if serialized.is_valid():
             user = request.user
             old_password = serialized.validated_data['old_password']
-            new_password = serialized.validated_Data['new_password']
+            new_password = serialized.validated_data['new_password']
             
             if not user.check_password(old_password):
                 return Response(
@@ -64,3 +69,24 @@ class ChangePasswordView(APIView) :
             user.save()
             return Response({"message": "Password changed successfully"})
         return Response(serialized.errors, status=status.HTTP_400_BADREQUEST)
+    
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = ProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        serializer = ProfileSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        serializer = ProfileSerializer(request.user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

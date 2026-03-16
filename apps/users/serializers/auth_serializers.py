@@ -35,3 +35,10 @@ class ChangePasswordSerializer(serializers.Serializer):
         validators=[validate_password]
         # validate_password là hàm có sẵn của django 
     )
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["email", "full_name", "created_at", "updated_at"]
+        read_only_fields = ["email", "created_at", "updated_at"]
