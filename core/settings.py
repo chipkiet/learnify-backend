@@ -34,6 +34,7 @@ LOCAL_APPS = [
     'apps.tags',
     'apps.documents',
     'apps.flashcards',
+    'apps.ai'
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -119,3 +120,4 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKEN': True,
     'BLACKLIST_AFTER_ROTATE': True,
 }
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
