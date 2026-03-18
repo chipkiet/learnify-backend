@@ -1,3 +1,4 @@
+import os
 from django.shortcuts import render
 import logging
 from rest_framework import status
@@ -5,8 +6,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from apps.documents.models import Document
-from apps.documents.serializers import DocumentUploadSerializer, DocumentListSerializer
+from apps.documents.serializers import DocumentUploadSerializer, DocumentListSerializer, DocumentDetailSerializer, DocumentUpdateSerializer
 from apps.documents.services.extractor import extract_document
+from django.http import FileResponse, Http404
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,31 +44,67 @@ class DocumentListView(APIView):
         documents = Document.objects.filter(user=request.user)
         serializer = DocumentListSerializer(documents, many = True)
         return Response(serializer.data)
-    
+
+
 class DocumentDetailView(APIView):
     permission_classes = [IsAuthenticated]
-    
-    def get(self, request, pk) :
-        try :
-            document = Document.objects.get(pk = pk, user = request.user)
-            serializer = DocumentListSerializer(document)
+
+    def get(self, request, pk):
+        try:
+            document = Document.objects.get(pk=pk, user=request.user)
+            serializer = DocumentDetailSerializer(document)  # ← đổi sang Detail
             return Response(serializer.data)
-        
-        except Document.DoesNotExist :
-            return Response(
-                {"error": "Document not found to watch detail con vk oi"},
-                status = status.HTTP_404_NOT_FOUND
+        except Document.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk):
+        try:
+            document = Document.objects.get(pk=pk, user=request.user)
+            serializer = DocumentUpdateSerializer(
+                document, data=request.data, partial=True
             )
-    
-    def delete(self, request, pk) :
-        try :
-            document = Document.objects.get(pk = pk, user = request.user)
-            document.file.delete()  # xoa file that tren disk
-            document.delete()       # xoa record trong
-            logger.info(f"Document deleted: {pk} by {request.user.email}")
+            if serializer.is_valid():
+                serializer.save()
+                return Response(DocumentDetailSerializer(document).data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Document.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, pk):
+        try:
+            document = Document.objects.get(pk=pk, user=request.user)
+            document.file.delete()
+            document.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
-        except Document.DoesNotExist :
-            return Response (
-                {"error": "Document can not found to delete con vk oi"},
-                status = status.HTTP_404_NOT_FOUND
+        except Document.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+class DocumentPreviewView(APIView): 
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk ) :
+        try :
+            document = Document.objects.get(pk=pk, user=request.user)
+        except Document.DoesNotExist:
+            return Response(
+                {"error": "Not found"},
+                status=status.HTTP_404_NOT_FOUND
             )
+        
+        if document.status != Document.Status.DONE:
+            return Response (
+                {
+                    "error": "Document chưa sẵn sàng baby ơi !!!",
+                    "status": document.status
+                },
+                status = status.HTTP_400_BAD_REQUEST
+            )
+        return Response({
+            "id": document.id,
+            "title": document.title,
+            "file_type": document.file_type,
+            "word_count": document.word_count,
+            "char_count": document.char_count,
+            "page_count": document.page_count,
+            "content": document.extracted_text,
+        })

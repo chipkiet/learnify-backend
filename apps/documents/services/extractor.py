@@ -76,7 +76,7 @@ def extract_document(document) -> bool:
         extractor_fn = EXTRACTORS.get(document.file_type)
 
         if extractor_fn is None:
-            raise ValueError(f"Unsupported file type: {document.file_type}")
+            raise ValueError(f"Nỏ hỗ trợ loại file type: {document.file_type} này đâu bé ơi !")
 
         result = extractor_fn(file_path)
         text   = result["text"].strip()
