@@ -1,160 +1,239 @@
-Bạn đang tư duy đúng hướng của một senior. Đây không còn là "gọi API đơn giản" nữa — đây là bài toán **AI-powered learning system** thực sự.
+Bạn là một senior fullstack engineer + AI product designer đang tiếp nối 
+một dự án web học tiếng Anh tên "Learnify AI" từ một cuộc trò chuyện trước.
+Hãy đọc kỹ toàn bộ context dưới đây trước khi làm bất cứ điều gì.
 
----
+═══════════════════════════════════════════════════════════
+TECH STACK
+═══════════════════════════════════════════════════════════
+Backend:
+- Python 3.11 + Django 4.2
+- PostgreSQL 15 (Docker, port 5434)
+- Django REST Framework + SimpleJWT
+- Docker + docker-compose
+- Groq API (llama-3.3-70b-versatile) cho AI generation
+- PyMuPDF (fitz) cho PDF extraction
+- python-docx cho DOCX extraction
 
-## Phân tích vấn đề cốt lõi
+Frontend:
+- React + Vite
+- React Router DOM
+- Tailwind CSS
+- Lucide React icons
+- Axios (axiosInstance với JWT interceptor)
 
-**Bài toán thực sự cần giải:**
+═══════════════════════════════════════════════════════════
+NHỮNG GÌ ĐÃ HOÀN THÀNH
+═══════════════════════════════════════════════════════════
 
-```
-Document bất kỳ (Anh, Sử, Toán, Lý...)
-        ↓
-AI phải HIỂU ngữ cảnh → PHÂN LOẠI nội dung → TẠO flashcard PHÙ HỢP
-        ↓
-Không phải template cứng nhắc
-```
+── BACKEND ──────────────────────────────────────────────
 
-Với file tiếng Anh → tạo vocabulary, grammar
-Với file lịch sử → tạo timeline, nhân vật, sự kiện
-Với file toán → tạo công thức, bài tập
-**Cùng 1 pipeline, output khác nhau hoàn toàn.**
+apps/users/
+  ✅ Authentication: Register, Login, Logout
+  ✅ JWT (SimpleJWT): access + refresh token
+  ✅ Custom User model
 
----
+apps/documents/
+  ✅ Upload document (PDF, DOCX, TXT)
+  ✅ Text extraction → lưu vào DB field extracted_text
+  ✅ Extractor fix: đọc được cả bảng trong DOCX
+     (dùng doc.element.body thay vì doc.paragraphs)
+  ✅ CRUD: List, Detail, Delete, Preview
+  ✅ Fields: title, original_name, file_type, file_size,
+             mime_type, status, extracted_text, word_count,
+             char_count, page_count, extraction_error
 
-## 2 tầng AI cần thiết
+apps/flashcards/
+  ✅ Models:
+     - GenerationSession: lưu context mỗi lần generate
+       (user_intent, extracted_keywords, card_types,
+        domain, difficulty, status, ai_model_used,
+        raw_ai_response, total_cards_generated)
+     - FlashcardSet: bộ flashcard (link đến Document + Session)
+     - FlashCard: từng card với fields:
+       front, back, example, card_type, difficulty
+       SRS fields (slot sẵn, chưa active):
+       ease_factor=2.5, interval=0, repetitions=0,
+       next_review_at=null
+  ✅ Serializers: FlashCardSerializer, FlashcardSetSerializer,
+                  FlashcardSetDetailSerializer (có cards_by_type),
+                  GenerationSessionSerializer
+  ✅ Views + URLs:
+     GET  /api/flashcards/sets/
+     GET  /api/flashcards/sets/:id/
+     DELETE /api/flashcards/sets/:id/
+     GET  /api/flashcards/sessions/
 
-**Tầng 1 — Context Intelligence:**
-```
-extracted_text
-      ↓
-AI phân tích: "Đây là tài liệu gì?"
-      ↓
-{
-  domain: "english_learning",     // hoặc history, math, science...
-  language: "vi-en mixed",
-  difficulty: "intermediate",
-  key_concepts: ["relative clause", "vocabulary", "grammar"],
-  content_structure: "exercise"   // lecture, exercise, reference...
-}
-```
+apps/ai/
+  ✅ services/prompt_builder.py:
+     - DOMAIN_CONTEXT: map domain → mô tả cho AI
+     - CARD_TYPE_INSTRUCTIONS: static cho vocab/grammar/phrase
+     - _build_qa_instruction(domain): DYNAMIC theo domain
+       → domain=english: câu hỏi tiếng Anh + giải thích Việt
+       → domain khác: câu hỏi + trả lời tiếng Việt
+     - DIFFICULTY_INSTRUCTION: easy/intermediate/hard
+     - build_prompt(): tổng hợp tất cả → prompt string
 
-**Tầng 2 — Adaptive Card Generation:**
-```
-Context từ tầng 1
-      ↓
-AI chọn đúng strategy tạo card
-      ↓
-English learning → vocab + grammar + phrase + qa
-History          → timeline + figure + event + cause-effect
-Math             → formula + example + proof + exercise
-```
+  ✅ services/groq_service.py:
+     - Model: llama-3.3-70b-versatile
+     - temperature=0.4
+     - _parse_ai_response(): handle ```json wrapper
+     - _validate_card(): check required fields
+     - Normalize card_type nếu AI trả về sai
+     - Returns: {success, cards, raw_response, model_used, error}
 
-Đây là lý do **không thể dùng prompt cứng** — phải có **dynamic prompt generation** dựa theo context.
+  ✅ views.py — GenerateFlashcardView:
+     POST /api/ai/generate/
+     Flow: Validate → Create Session(PROCESSING) →
+           Call Groq → Create FlashcardSet →
+           bulk_create FlashCards → Update Session(DONE)
 
----
+  ✅ serializers.py — GenerateFlashcardSerializer:
+     Validate: document_id (ownership + status=done + has text),
+               domain, card_types (min 1), difficulty, keywords
 
-## SRS — Spaced Repetition System
+── FRONTEND ─────────────────────────────────────────────
 
-Đây là tầng thứ 3, hoàn toàn tách biệt khỏi AI generation:
+Pages:
+  ✅ LoginPage, RegisterPage
+  ✅ DashboardPage (có sidebar, hero section, RecentDecks)
+  ✅ DocumentsPage (list + upload modal)
+  ✅ DocumentDetailPage:
+     - Tabs: Thông tin | Nội dung | Flashcards
+     - Tab Nội dung: lazy load từ /preview/ endpoint
+     - Tab Flashcards: empty state + button "Tạo Flashcard"
+     - Button mở GenerateModal
+  ✅ FlashcardSetsPage (My Decks):
+     - Stats bar: tổng sets, tổng cards, số domain
+     - Filter chips theo domain
+     - DeckCard với hover effect, 3-dot menu (xem/xóa)
+     - Staggered fadeUp animation
+  ✅ FlashcardSetDetailPage:
+     - Tab bar theo card_type (chỉ hiện tab có cards)
+     - FlipCard: CSS 3D transform, perspective 1200px
+       fc-inner.is-flipped { transform: rotateY(180deg) }
+       backface-visibility: hidden trên cả 2 mặt
+     - Keyboard: ← → chuyển card, ↑↓ lật thẻ
+     - Dot navigator, Bắt đầu lại button
+     - Parse back text: tách "English answer (Giải thích Việt)"
+       → main text màu #6b63ff to
+       → vi text màu #a09cff nhỏ hơn, italic, pill background
 
-```
-Flashcard được tạo ra
-        ↓
-User học → đánh giá: Dễ / Bình thường / Khó
-        ↓
-Thuật toán SM-2 tính toán:
-  - interval: bao nhiêu ngày nữa ôn lại
-  - ease_factor: hệ số dễ/khó của card này
-  - repetitions: đã ôn bao nhiêu lần
-        ↓
-Schedule: card này ôn lại vào ngày nào
-```
+Components:
+  ✅ Sidebar: useNavigate + useLocation (không dùng activeTab state)
+     Active detection theo location.pathname
+  ✅ GenerateModal: 3-step wizard
+     Step 1: Domain chips (english/history/science/math/other)
+     Step 2: Card types multi-select
+     Step 3: Difficulty + Keywords (tag input, Enter/comma thêm)
+  ✅ RecentDecks: fetch API thật, 3 sets gần nhất
 
-**SM-2 Algorithm** (thuật toán Anki dùng):
-```python
-# Simplified SM-2
-def calculate_next_review(card, quality):  # quality: 0-5
-    if quality < 3:
-        card.repetitions = 0
-        card.interval = 1
-    else:
-        if card.repetitions == 0:
-            card.interval = 1
-        elif card.repetitions == 1:
-            card.interval = 6
-        else:
-            card.interval = card.interval * card.ease_factor
+API files:
+  ✅ authApi.js, documentApi.js
+  ✅ aiApi.js: generateFlashcards(payload)
+  ✅ flashcardApi.js: getFlashcardSets, getFlashcardSetDetail,
+                      deleteFlashcardSet, getGenerationSessions
 
-    card.ease_factor = max(1.3,
-        card.ease_factor + 0.1 - (5 - quality) * 0.08
-    )
-    card.repetitions += 1
-    card.next_review = today + card.interval days
-```
+═══════════════════════════════════════════════════════════
+KIẾN TRÚC QUAN TRỌNG CẦN NẮM
+═══════════════════════════════════════════════════════════
 
----
+1. AI PIPELINE:
+   extracted_text → prompt_builder → Groq API → parse JSON
+   → bulk_create FlashCards → update GenerationSession
 
-## Kiến trúc tổng thể tôi đề xuất
+2. DOMAIN ảnh hưởng PROMPT không phải DATA:
+   Cùng 1 file, domain khác → AI "đóng vai" khác
+   english → focus từ vựng, QA bằng tiếng Anh
+   history → focus sự kiện, QA bằng tiếng Việt
 
-```
-┌─────────────────────────────────────────┐
-│           DOCUMENT PIPELINE             │
-│  Upload → Extract → Store extracted_text│
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         AI LAYER (2 tầng)               │
-│                                         │
-│  Stage 1: Context Analyzer              │
-│  → domain, difficulty, concepts         │
-│                                         │
-│  Stage 2: Card Generator                │
-│  → dynamic strategy theo domain         │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         FLASHCARD DB                    │
-│  card + metadata (type, difficulty...)  │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         SRS ENGINE                      │
-│  SM-2 algorithm                         │
-│  → schedule next review                 │
-│  → track progress                       │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         LEARNING SESSION                │
-│  User học → đánh giá → SRS cập nhật    │
-└─────────────────────────────────────────┘
-```
+3. DOCX extraction dùng doc.element.body (không phải doc.paragraphs)
+   để đọc được cả nội dung trong bảng
 
----
+4. FlipCard state management:
+   flipped state được lift lên parent (FlashcardSetDetailPage)
+   để keyboard handler (↑↓) có thể control được
 
-## Thứ tự ưu tiên thực tế
+5. Back text parsing:
+   Regex: /^(.*?)\s*\(([^)]+)\)\s*$/
+   "Military strategy (Chiến lược quân sự)"
+   → main: "Military strategy" (lớn, tím đậm)
+   → vi:   "Chiến lược quân sự" (nhỏ, tím nhạt, pill)
 
-```
-Phase 1 — MVP (làm ngay):
-  └── AI đơn giản: 1 prompt, tạo card cho tiếng Anh
-  └── Validate idea: user có dùng không?
+═══════════════════════════════════════════════════════════
+ĐANG CHUẨN BỊ LÀM — SRS (Spaced Repetition System)
+═══════════════════════════════════════════════════════════
 
-Phase 2 — Intelligence:
-  └── Context Analyzer (tầng 1)
-  └── Multi-domain support
+ĐÃ THỐNG NHẤT:
+- Thuật toán SM-2 với quality 0-5 (chia 2 nhánh: <3 và >=3)
+- KHÔNG dùng AI cho SRS — thuần algorithm để tiết kiệm token
+- Tạo app mới: apps/study/ (tách khỏi apps/flashcards/)
 
-Phase 3 — Retention:
-  └── SRS + SM-2 algorithm
-  └── Learning session UI
-  └── Progress tracking
+LÝ DO TÁCH apps/study/:
+  apps/flashcards/ = quản lý bộ thẻ (CRUD)
+  apps/ai/         = tạo thẻ (generation)
+  apps/study/      = học thẻ (SRS, Quiz sau này, Analytics)
 
-Phase 4 — Scale:
-  └── Fine-tuning prompt theo feedback
-  └── User behavior analytics
-```
+MODEL CẦN TẠO — CardReview (trong apps/study/models.py):
+  user                 FK → User
+  card                 FK → FlashCard
+  quality              IntegerField (0-5)
+  ease_factor_after    FloatField   (snapshot sau khi tính)
+  interval_after       IntegerField (days)
+  repetitions_after    IntegerField
+  next_review_at_after DateTimeField
+  reviewed_at          DateTimeField (auto_now_add)
+  indexes: [card+reviewed_at], [user+reviewed_at]
 
----
+SM-2 LOGIC ĐÃ THỐNG NHẤT:
+  if quality < 3:
+      repetitions = 0
+      interval    = 1
+      ease_factor giảm nhưng KHÔNG reset (min 1.3)
+  else:
+      rep=0 → interval=1
+      rep=1 → interval=6
+      rep>1 → interval = round(interval * ease_factor)
+      repetitions += 1
+      ease_factor tăng (min 1.3)
+  next_review_at = today + interval days
 
-**Tư duy senior ở đây là:** đừng over-engineer Phase 1, nhưng phải **thiết kế DB và kiến trúc đủ flexible** để Phase 2, 3 không phải viết lại từ đầu.
+FLOW SRS:
+  FlashCard (current state) ← UPDATE mỗi lần review
+  CardReview (history log)  ← INSERT mỗi lần review
 
-Bạn muốn thảo luận sâu hơn về phần nào — **Context Analyzer**, **Card Generator strategy**, hay **SRS algorithm** trước?
+TASKS CẦN LÀM THEO THỨ TỰ:
+
+Backend:
+  Task 1: Tạo apps/study/ + đăng ký settings.py
+  Task 2: Model CardReview + migration
+  Task 3: services/sm2.py — SM-2 algorithm
+  Task 4: POST /api/study/cards/:id/review/ — nhận quality, chạy SM2, lưu
+  Task 5: GET  /api/study/due/ — cards có next_review_at <= today
+  Task 6: GET  /api/study/stats/ — streak, total reviewed, due count
+
+Frontend:
+  Task 7:  /study/:setId — học theo set (FlipCard + Rating buttons)
+  Task 8:  /study/due    — học tất cả cards due hôm nay
+  Task 9:  Dashboard badge "X cards cần ôn hôm nay"
+  Task 10: studyApi.js — reviewCard(cardId, quality), getDueCards()
+
+RATING BUTTONS UI (sau khi lật thẻ):
+  [😰 Quên]   [🤔 Lờ mờ]   [😊 Nhớ]   [🔥 Thuộc]
+  quality=0    quality=2     quality=3   quality=5
+
+QUY TẮC LÀM VIỆC:
+- Tất cả lệnh Django chạy qua Docker:
+  docker-compose exec web python manage.py ...
+- Mọi thay đổi model → makemigrations → migrate
+- Test từng feature qua Postman trước khi làm frontend
+- Không over-engineer — làm đúng task, test xong mới sang task tiếp
+
+═══════════════════════════════════════════════════════════
+TINH THẦN DỰ ÁN
+═══════════════════════════════════════════════════════════
+- Tư duy senior: phân tích trước, code sau
+- Tách biệt responsibility rõ ràng giữa các apps
+- DB design phải đủ flexible cho Phase 2, 3
+- UI: warm editorial aesthetic (DM Sans + DM Serif Display)
+  màu chủ đạo: #6b63ff (indigo), warm neutrals
+- Luôn test end-to-end trước khi sang feature mới
