@@ -43,6 +43,24 @@ DIFFICULTY_INSTRUCTION = {
 }
 
 
+def _build_qa_instruction(domain: str) -> str:
+    if domain == "english":
+        return """
+  
+  -QA cards: English comprehensive questions to test understanding
+    + front: question in English about the content
+    + back : answer in English( add Vietnamese explanation in parentheses if helpful)
+    + example: ""  
+"""
+    else:
+        return """
+  -QA cards: câu hỏi kiểm tra hiểu bài từ nội dung tài liệu
+    + front: câu hỏi tiếng Việt về nội dung
+    + back : câu trả lời đầy đủ bằng tiếng Việt
+    + example : ""
+"""
+
+
 def build_prompt(
     extracted_text: str,
     domain: str,
@@ -62,7 +80,10 @@ def build_prompt(
     # Build card type instructions theo những gì user chọn
     card_instructions = ""
     for ct in card_types:
-        if ct in CARD_TYPE_INSTRUCTIONS:
+        if ct == "qa":
+            card_instructions += _build_qa_instruction(domain)
+
+        elif ct in CARD_TYPE_INSTRUCTIONS:
             card_instructions += CARD_TYPE_INSTRUCTIONS[ct]
 
     # Keywords section — optional
