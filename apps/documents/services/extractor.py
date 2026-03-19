@@ -24,15 +24,47 @@ def extract_text_from_docx(file_path: str) -> dict :
     """ 
         docx không có khái niệm rõ ràng về page_count như PDF
         -> đến số section breaks làm ước lượng
+        vấn đề trước đây, docx không đọc được các dữ liệu trong bảng
+        (doc.paragraph), ta nên fix thêm cơ chế cho đọc table nữa )
     """
     
     doc = DocxDocument(file_path)
-    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+    lines = []
     
+    # ── Duyệt theo thứ tự xuất hiện trong document ──────
+    # doc.element.body chứa tất cả: paragraph + table đúng thứ tự
+    from docx.oxml.ns import qn
+
+    for child in doc.element.body:
+        # Paragraph thường
+        if child.tag == qn('w:p'):
+            text = "".join(
+                node.text for node in child.iter(qn('w:t'))
+                if node.text
+            )
+            if text.strip():
+                lines.append(text.strip())
+
+        # Table — iterate từng row, từng cell
+        elif child.tag == qn('w:tbl'):
+            for row in child.iter(qn('w:tr')):
+                cells = []
+                for cell in row.iter(qn('w:tc')):
+                    cell_text = "".join(
+                        node.text for node in cell.iter(qn('w:t'))
+                        if node.text
+                    ).strip()
+                    if cell_text:
+                        cells.append(cell_text)
+                if cells:
+                    lines.append(" | ".join(cells))  # "1 | happy | vui vẻ | She is happy"
+
     return {
-        "text": "\n\n".join(paragraphs),
-        "page_count": 0 # docx sẽ không có page count thật
+        "text": "\n".join(lines),
+        "page_count": 0,
     }
+    
+    
     
 def extract_text_from_txt(file_path: str) -> dict :
     """ 
