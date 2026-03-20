@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from django.utils import timezone
+from django.db.models import Q
 
 from apps.flashcards.models import FlashCard
 from apps.study.models import CardReview
@@ -100,24 +101,14 @@ class DueCardsView(APIView):
         now = timezone.now()
 
         due_cards = (
-            FlashCard.objects.filter(
-                user=request.user,
-            )
+            FlashCard.objects.filter(user=request.user)
             .filter(
-                # Chưa học lần nào (next_review_at=null)
-                # HOẶC đã đến hạn
-                next_review_at__isnull=True
-            )
-            .union(
-                FlashCard.objects.filter(
-                    user=request.user,
-                    next_review_at__lte=now,
-                )
+                Q(next_review_at__isnull=True)  # chưa học lần nào
+                | Q(next_review_at__lte=now)  # đã đến hạn
             )
             .order_by("next_review_at")
         )
 
-        # Serialize thủ công — nhẹ hơn
         data = []
         for card in due_cards:
             data.append(

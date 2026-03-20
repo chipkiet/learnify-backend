@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+MAX_INTERVAL = 120
 
 def _update_ef(ef: float, quality: int) -> float:
     """Công thức EF chuẩn Wozniak — bậc 2."""
@@ -43,6 +44,7 @@ def calculate_sm2(
             new_interval = 6
         else:
             new_interval = round(interval * new_ease_factor)
+            new_interval = min(new_interval, MAX_INTERVAL)
 
     next_review_at = datetime.now(tz=timezone.utc) + timedelta(days=new_interval)
 
