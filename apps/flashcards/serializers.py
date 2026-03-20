@@ -20,14 +20,22 @@ class FlashcardSetSerializer(serializers.ModelSerializer):
     """Dùng cho List — không trả về cards để response nhẹ."""
     total_cards = serializers.SerializerMethodField()
     document_title = serializers.SerializerMethodField()
+    progress = serializers.SerializerMethodField()
 
     class Meta:
         model  = FlashcardSet
         fields = [
-            'id', 'title', 'description', 'domain',
-            'status', 'is_public',
-            'total_cards', 'document_title',
-            'created_at', 'updated_at',
+            "id",
+            "title",
+            "description",
+            "domain",
+            "status",
+            "is_public",
+            "total_cards",
+            "document_title",
+            "progress",
+            "created_at",
+            "updated_at",
         ]
         read_only_fields = fields
 
@@ -36,6 +44,28 @@ class FlashcardSetSerializer(serializers.ModelSerializer):
 
     def get_document_title(self, obj):
         return obj.document.title if obj.document else None
+
+    def get_progress(self, obj):
+        total = obj.flashcards.count()
+        reviewed = getattr(obj, "reviewed_count", 0)
+        due = getattr(obj, "due_count", 0)
+
+        if reviewed == 0:
+            state = "new"
+        elif due > 0:
+            state = "due"
+        elif reviewed < total:
+            state = "in_progress"
+        else:
+            state = "completed"
+
+        return {
+            "total": total,
+            "reviewed": reviewed,
+            "due_today": due,
+            "state": state,
+            "percent": round((reviewed / total * 100) if total > 0 else 0),
+        }
 
 
 class FlashcardSetDetailSerializer(serializers.ModelSerializer):

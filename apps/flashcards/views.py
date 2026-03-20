@@ -5,6 +5,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
+from django.utils import timezone
+from django.db.models import Count, Q
+
 
 from apps.flashcards.models import FlashcardSet, FlashCard, GenerationSession
 from apps.flashcards.serializers import (
@@ -24,7 +27,15 @@ class FlashcardSetListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        sets = FlashcardSet.objects.filter(user=request.user)
+        now = timezone.now()
+        sets = FlashcardSet.objects.filter(user=request.user).annotate(
+            reviewed_count=Count(
+                "flashcards", filter=Q(flashcards__next_review_at__isnull=False)
+            ),
+            due_count=Count(
+                "flashcards", filter=Q(flashcards__next_review_at__lte=now)
+            ),
+        )
 
         # Filter theo domain nếu có
         domain = request.query_params.get('domain')

@@ -102,10 +102,7 @@ class DueCardsView(APIView):
 
         due_cards = (
             FlashCard.objects.filter(user=request.user)
-            .filter(
-                Q(next_review_at__isnull=True)  # chưa học lần nào
-                | Q(next_review_at__lte=now)  # đã đến hạn
-            )
+            .filter(Q(next_review_at__lte=now))  # đã đến hạn
             .order_by("next_review_at")
         )
 
@@ -130,6 +127,45 @@ class DueCardsView(APIView):
         return Response(
             {
                 "due_count": len(data),
+                "cards": data,
+            }
+        )
+
+
+# apps/study/views.py — thêm view mới
+
+
+class NewCardsView(APIView):
+    """
+    GET /api/study/new/
+    Cards chưa học lần nào (next_review_at = null)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        new_cards = FlashCard.objects.filter(
+            user=request.user,
+            next_review_at__isnull=True,
+        ).order_by("created_at")
+
+        data = []
+        for card in new_cards:
+            data.append(
+                {
+                    "id": card.id,
+                    "front": card.front,
+                    "back": card.back,
+                    "example": card.example,
+                    "card_type": card.card_type,
+                    "difficulty": card.difficulty,
+                    "set_id": card.set_id,
+                }
+            )
+
+        return Response(
+            {
+                "new_count": len(data),
                 "cards": data,
             }
         )

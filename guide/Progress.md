@@ -17,7 +17,7 @@ Backend:
 Frontend:
 - React + Vite
 - React Router DOM
-- Tailwind CSS
+- Tailwind CSS (hạn chế dùng, ưu tiên inline styles)
 - Lucide React icons
 - Axios (axiosInstance với JWT interceptor)
 
@@ -35,12 +35,18 @@ apps/users/
 apps/documents/
   ✅ Upload document (PDF, DOCX, TXT)
   ✅ Text extraction → lưu vào DB field extracted_text
-  ✅ Extractor fix: đọc được cả bảng trong DOCX
-     (dùng doc.element.body thay vì doc.paragraphs)
+  ✅ Extractor fix QUAN TRỌNG: đọc được cả bảng trong DOCX
+     dùng doc.element.body thay vì doc.paragraphs
   ✅ CRUD: List, Detail, Delete, Preview
-  ✅ Fields: title, original_name, file_type, file_size,
-             mime_type, status, extracted_text, word_count,
-             char_count, page_count, extraction_error
+  ✅ Serializers: DocumentListSerializer, DocumentDetailSerializer
+                  DocumentUpdateSerializer
+  ✅ Endpoints:
+     GET    /api/documents/
+     POST   /api/documents/upload/
+     GET    /api/documents/:id/
+     PATCH  /api/documents/:id/
+     DELETE /api/documents/:id/
+     GET    /api/documents/:id/preview/
 
 apps/flashcards/
   ✅ Models:
@@ -48,90 +54,151 @@ apps/flashcards/
        (user_intent, extracted_keywords, card_types,
         domain, difficulty, status, ai_model_used,
         raw_ai_response, total_cards_generated)
-     - FlashcardSet: bộ flashcard (link đến Document + Session)
-     - FlashCard: từng card với fields:
-       front, back, example, card_type, difficulty
-       SRS fields (slot sẵn, chưa active):
+     - FlashcardSet: bộ flashcard (link Document + Session)
+       có field domain, is_public, status
+     - FlashCard: front, back, example, card_type, difficulty
+       SRS fields đã có slot sẵn:
        ease_factor=2.5, interval=0, repetitions=0,
        next_review_at=null
-  ✅ Serializers: FlashCardSerializer, FlashcardSetSerializer,
-                  FlashcardSetDetailSerializer (có cards_by_type),
-                  GenerationSessionSerializer
-  ✅ Views + URLs:
-     GET  /api/flashcards/sets/
-     GET  /api/flashcards/sets/:id/
+  ✅ FlashcardSetSerializer có progress field (annotated):
+     {total, reviewed, due_today, state, percent}
+     state: "new" | "in_progress" | "due" | "completed"
+  ✅ Endpoints:
+     GET    /api/flashcards/sets/         (có progress annotation)
+     GET    /api/flashcards/sets/:id/     (có cards_by_type)
      DELETE /api/flashcards/sets/:id/
-     GET  /api/flashcards/sessions/
+     GET    /api/flashcards/sessions/
 
 apps/ai/
   ✅ services/prompt_builder.py:
      - DOMAIN_CONTEXT: map domain → mô tả cho AI
      - CARD_TYPE_INSTRUCTIONS: static cho vocab/grammar/phrase
      - _build_qa_instruction(domain): DYNAMIC theo domain
-       → domain=english: câu hỏi tiếng Anh + giải thích Việt
-       → domain khác: câu hỏi + trả lời tiếng Việt
+       → domain=english: câu hỏi+trả lời tiếng Anh
+       → domain khác: câu hỏi+trả lời tiếng Việt
      - DIFFICULTY_INSTRUCTION: easy/intermediate/hard
-     - build_prompt(): tổng hợp tất cả → prompt string
+     - build_prompt(): tổng hợp → prompt string
 
   ✅ services/groq_service.py:
      - Model: llama-3.3-70b-versatile
      - temperature=0.4
      - _parse_ai_response(): handle ```json wrapper
      - _validate_card(): check required fields
-     - Normalize card_type nếu AI trả về sai
-     - Returns: {success, cards, raw_response, model_used, error}
+     - Normalize card_type nếu AI trả sai
 
-  ✅ views.py — GenerateFlashcardView:
-     POST /api/ai/generate/
+  ✅ POST /api/ai/generate/
      Flow: Validate → Create Session(PROCESSING) →
            Call Groq → Create FlashcardSet →
            bulk_create FlashCards → Update Session(DONE)
 
-  ✅ serializers.py — GenerateFlashcardSerializer:
-     Validate: document_id (ownership + status=done + has text),
-               domain, card_types (min 1), difficulty, keywords
+apps/study/
+  ✅ Model CardReview:
+     user, card (FK), quality (0-5),
+     ease_factor_after, interval_after,
+     repetitions_after, next_review_at_after,
+     reviewed_at (auto)
+     indexes: [card+reviewed_at], [user+reviewed_at]
+
+  ✅ services/sm2.py — SM-2 thuần algorithm:
+     - _update_ef(ef, quality): công thức Wozniak bậc 2
+       ef + 0.1 - (5-q) * (0.08 + (5-q) * 0.02)
+     - quality < 3  → reset rep=0, interval=1
+     - quality >= 3 → tăng interval * ease_factor
+     - MAX_INTERVAL = 120 days
+     - timezone.utc cho next_review_at
+
+  ✅ Endpoints:
+     POST /api/study/cards/:id/review/  (nhận quality, chạy SM-2)
+     GET  /api/study/due/               (cards next_review_at <= now)
+     GET  /api/study/new/               (cards next_review_at = null)
+
+  ✅ Phân biệt rõ 2 loại:
+     due = đã học + đến hạn ôn lại
+     new = chưa học lần nào
 
 ── FRONTEND ─────────────────────────────────────────────
 
-Pages:
+Design System: "Warm Editorial"
+  Inspired by Claude.ai — warm cream, terracotta accent
+  Tokens:
+    bg: #f9f6f1, surface: #ffffff
+    border: #e8e1d9, borderHover: #d4ccc3
+    textPrimary: #1a1411, textSecondary: #6b5f57
+    textMuted: #a89e96
+    accent: #d4724a (terracotta)
+    accentBg: #fef4ef, accentBorder: #f5c9b0
+    hover: #f2ece4
+  Fonts: DM Serif Display (headings) + DM Sans (body)
+  KHÔNG dùng tím/indigo bất kỳ đâu
+
+Pages hoàn chỉnh:
   ✅ LoginPage, RegisterPage
-  ✅ DashboardPage (có sidebar, hero section, RecentDecks)
+  ✅ DashboardPage (inline: Sidebar, Header, HeroSection,
+                    RecentDecks, DueBanner, NewBanner)
+     - DueBanner: hiện khi due_count > 0 (terracotta)
+     - NewBanner: hiện khi new_count > 0 (green)
+     - RecentDecks: 3 sets gần nhất với progress bar
   ✅ DocumentsPage (list + upload modal)
   ✅ DocumentDetailPage:
      - Tabs: Thông tin | Nội dung | Flashcards
-     - Tab Nội dung: lazy load từ /preview/ endpoint
-     - Tab Flashcards: empty state + button "Tạo Flashcard"
-     - Button mở GenerateModal
+     - Tab Nội dung: lazy load từ /preview/
+     - Tab Flashcards: mở GenerateModal (3-step wizard)
   ✅ FlashcardSetsPage (My Decks):
-     - Stats bar: tổng sets, tổng cards, số domain
+     - Stats: tổng sets, tổng cards, số domain
      - Filter chips theo domain
-     - DeckCard với hover effect, 3-dot menu (xem/xóa)
-     - Staggered fadeUp animation
-  ✅ FlashcardSetDetailPage:
-     - Tab bar theo card_type (chỉ hiện tab có cards)
-     - FlipCard: CSS 3D transform, perspective 1200px
-       fc-inner.is-flipped { transform: rotateY(180deg) }
-       backface-visibility: hidden trên cả 2 mặt
-     - Keyboard: ← → chuyển card, ↑↓ lật thẻ
-     - Dot navigator, Bắt đầu lại button
-     - Parse back text: tách "English answer (Giải thích Việt)"
-       → main text màu #6b63ff to
-       → vi text màu #a09cff nhỏ hơn, italic, pill background
-
-Components:
-  ✅ Sidebar: useNavigate + useLocation (không dùng activeTab state)
-     Active detection theo location.pathname
-  ✅ GenerateModal: 3-step wizard
-     Step 1: Domain chips (english/history/science/math/other)
-     Step 2: Card types multi-select
-     Step 3: Difficulty + Keywords (tag input, Enter/comma thêm)
-  ✅ RecentDecks: fetch API thật, 3 sets gần nhất
+     - DeckCard: state badge + progress bar + 2 buttons
+       "Xem thẻ" → /flashcards/:id (browse)
+       "Bắt đầu học" → /study/:id (study)
+     - 4 states: new/in_progress/due/completed
+  ✅ FlashcardSetDetailPage (Browse mode):
+     - Tab bar theo card_type
+     - FlipCard: CSS 3D rotateY(180deg)
+       fc-inner.is-flipped, backface-visibility:hidden
+     - Keyboard: ← → chuyển, ↑↓ lật
+     - Dot navigator, Reset button
+     - Parse back: "answer (Giải thích Việt)"
+       main → terracotta, vi → nhỏ italic pill
+  ✅ StudyPage (/study/:setId — Focus mode):
+     - Dark bg không, dùng warm indigo tinted
+       linear-gradient(#f3f2ff → #faf8f5)
+     - FlipCard + 4 Rating buttons (sau khi lật)
+       Quên(q=0)/Lờ mờ(q=2)/Nhớ(q=3)/Thuộc(q=5)
+     - Auto next card sau khi rate
+     - Keyboard: Space/↑↓ lật, 1/2/3/4 chọn rating
+     - Progress bar header
+     - Summary screen khi xong
 
 API files:
-  ✅ authApi.js, documentApi.js
+  ✅ authApi.js
+  ✅ documentApi.js: getPreviewDocument, getDetailDocument...
   ✅ aiApi.js: generateFlashcards(payload)
   ✅ flashcardApi.js: getFlashcardSets, getFlashcardSetDetail,
                       deleteFlashcardSet, getGenerationSessions
+  ✅ studyApi.js: reviewCard(cardId, quality),
+                  getDueCards(), getNewCards()
+
+Router /src/router/index.jsx:
+  /dashboard, /documents, /documents/:id
+  /flashcards, /flashcards/:id
+  /study/:setId
+  /study/due  ← chưa có page, cần làm
+  /change-password, /profile
+
+═══════════════════════════════════════════════════════════
+CÒN LẠI CẦN LÀM
+═══════════════════════════════════════════════════════════
+
+Backend:
+  🔲 GET /api/study/stats/ — streak, total reviewed, due count
+     (dùng cho dashboard analytics sau này)
+
+Frontend:
+  🔲 /study/due — trang học tất cả cards due hôm nay
+     (tương tự StudyPage nhưng lấy cards từ getDueCards()
+      thay vì getFlashcardSetDetail())
+  🔲 Add route /study/due vào router
+  🔲 DueBanner button "Ôn ngay" → /study/due (đã có button,
+     cần có page)
 
 ═══════════════════════════════════════════════════════════
 KIẾN TRÚC QUAN TRỌNG CẦN NẮM
@@ -142,98 +209,34 @@ KIẾN TRÚC QUAN TRỌNG CẦN NẮM
    → bulk_create FlashCards → update GenerationSession
 
 2. DOMAIN ảnh hưởng PROMPT không phải DATA:
-   Cùng 1 file, domain khác → AI "đóng vai" khác
-   english → focus từ vựng, QA bằng tiếng Anh
-   history → focus sự kiện, QA bằng tiếng Việt
+   english → QA tiếng Anh + giải thích Việt trong ngoặc
+   history/science/math → QA tiếng Việt hoàn toàn
 
-3. DOCX extraction dùng doc.element.body (không phải doc.paragraphs)
-   để đọc được cả nội dung trong bảng
+3. DOCX extraction: doc.element.body (đọc được tables)
 
-4. FlipCard state management:
-   flipped state được lift lên parent (FlashcardSetDetailPage)
-   để keyboard handler (↑↓) có thể control được
+4. SRS flow:
+   FlashCard.next_review_at = null  → new (chưa học)
+   FlashCard.next_review_at <= now  → due (cần ôn)
+   FlashCard.next_review_at > now   → scheduled (chờ)
 
-5. Back text parsing:
-   Regex: /^(.*?)\s*\(([^)]+)\)\s*$/
-   "Military strategy (Chiến lược quân sự)"
-   → main: "Military strategy" (lớn, tím đậm)
-   → vi:   "Chiến lược quân sự" (nhỏ, tím nhạt, pill)
+5. Progress annotation (1 query duy nhất):
+   FlashcardSet.annotate(reviewed_count, due_count)
+   → không N+1 queries
 
-═══════════════════════════════════════════════════════════
-ĐANG CHUẨN BỊ LÀM — SRS (Spaced Repetition System)
-═══════════════════════════════════════════════════════════
+6. Back text parsing:
+   /^(.*?)\s*\(([^)]+)\)\s*$/
+   "answer (Giải thích)" → main + vi text
 
-ĐÃ THỐNG NHẤT:
-- Thuật toán SM-2 với quality 0-5 (chia 2 nhánh: <3 và >=3)
-- KHÔNG dùng AI cho SRS — thuần algorithm để tiết kiệm token
-- Tạo app mới: apps/study/ (tách khỏi apps/flashcards/)
-
-LÝ DO TÁCH apps/study/:
-  apps/flashcards/ = quản lý bộ thẻ (CRUD)
-  apps/ai/         = tạo thẻ (generation)
-  apps/study/      = học thẻ (SRS, Quiz sau này, Analytics)
-
-MODEL CẦN TẠO — CardReview (trong apps/study/models.py):
-  user                 FK → User
-  card                 FK → FlashCard
-  quality              IntegerField (0-5)
-  ease_factor_after    FloatField   (snapshot sau khi tính)
-  interval_after       IntegerField (days)
-  repetitions_after    IntegerField
-  next_review_at_after DateTimeField
-  reviewed_at          DateTimeField (auto_now_add)
-  indexes: [card+reviewed_at], [user+reviewed_at]
-
-SM-2 LOGIC ĐÃ THỐNG NHẤT:
-  if quality < 3:
-      repetitions = 0
-      interval    = 1
-      ease_factor giảm nhưng KHÔNG reset (min 1.3)
-  else:
-      rep=0 → interval=1
-      rep=1 → interval=6
-      rep>1 → interval = round(interval * ease_factor)
-      repetitions += 1
-      ease_factor tăng (min 1.3)
-  next_review_at = today + interval days
-
-FLOW SRS:
-  FlashCard (current state) ← UPDATE mỗi lần review
-  CardReview (history log)  ← INSERT mỗi lần review
-
-TASKS CẦN LÀM THEO THỨ TỰ:
-
-Backend:
-  Task 1: Tạo apps/study/ + đăng ký settings.py
-  Task 2: Model CardReview + migration
-  Task 3: services/sm2.py — SM-2 algorithm
-  Task 4: POST /api/study/cards/:id/review/ — nhận quality, chạy SM2, lưu
-  Task 5: GET  /api/study/due/ — cards có next_review_at <= today
-  Task 6: GET  /api/study/stats/ — streak, total reviewed, due count
-
-Frontend:
-  Task 7:  /study/:setId — học theo set (FlipCard + Rating buttons)
-  Task 8:  /study/due    — học tất cả cards due hôm nay
-  Task 9:  Dashboard badge "X cards cần ôn hôm nay"
-  Task 10: studyApi.js — reviewCard(cardId, quality), getDueCards()
-
-RATING BUTTONS UI (sau khi lật thẻ):
-  [😰 Quên]   [🤔 Lờ mờ]   [😊 Nhớ]   [🔥 Thuộc]
-  quality=0    quality=2     quality=3   quality=5
-
-QUY TẮC LÀM VIỆC:
-- Tất cả lệnh Django chạy qua Docker:
-  docker-compose exec web python manage.py ...
-- Mọi thay đổi model → makemigrations → migrate
-- Test từng feature qua Postman trước khi làm frontend
-- Không over-engineer — làm đúng task, test xong mới sang task tiếp
+7. Design: KHÔNG dùng tím/indigo
+   Accent duy nhất = #d4724a terracotta
 
 ═══════════════════════════════════════════════════════════
-TINH THẦN DỰ ÁN
+QUY TẮC LÀM VIỆC
 ═══════════════════════════════════════════════════════════
-- Tư duy senior: phân tích trước, code sau
-- Tách biệt responsibility rõ ràng giữa các apps
-- DB design phải đủ flexible cho Phase 2, 3
-- UI: warm editorial aesthetic (DM Sans + DM Serif Display)
-  màu chủ đạo: #6b63ff (indigo), warm neutrals
-- Luôn test end-to-end trước khi sang feature mới
+- Docker: docker-compose exec web python manage.py ...
+- Model thay đổi → makemigrations → migrate
+- Test Postman trước → frontend sau
+- Phân tích trước, code sau
+- Design tokens T = {...} đặt đầu file
+- Inline styles, không dùng Tailwind cho màu sắc
+- Warm Editorial palette — xem Design System ở trên
