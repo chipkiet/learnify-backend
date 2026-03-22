@@ -7,3 +7,7 @@ django-cors-headers==4.3.1
 PyMuPDF==1.24.0
 python-docx==1.1.0
 groq==0.13.0
+gunicorn==21.2.0
+whitenoise==6.6.0      # serve static files
+dj-database-url==2.1.0 # parse DATABASE_URL từ Railway
+django-cors-headers==4.3.1

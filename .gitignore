@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 venv/
 
 # Django
@@ -14,8 +15,11 @@ media/
 # Environment
 .env
 
+staticfiles/"
+
 # Docker
 postgres_data/
 
 # Mac
 .DS_Store
+EOF
