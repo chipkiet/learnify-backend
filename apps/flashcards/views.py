@@ -24,6 +24,7 @@ class FlashcardSetListView(APIView):
     GET /api/flashcards/sets/
     List tất cả bộ flashcard của user.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -38,12 +39,12 @@ class FlashcardSetListView(APIView):
         )
 
         # Filter theo domain nếu có
-        domain = request.query_params.get('domain')
+        domain = request.query_params.get("domain")
         if domain:
             sets = sets.filter(domain=domain)
 
         # Filter theo document nếu có
-        document_id = request.query_params.get('document_id')
+        document_id = request.query_params.get("document_id")
         if document_id:
             sets = sets.filter(document_id=document_id)
 
@@ -55,7 +56,9 @@ class FlashcardSetDetailView(APIView):
     """
     GET    /api/flashcards/sets/<pk>/  — xem chi tiết + toàn bộ cards
     DELETE /api/flashcards/sets/<pk>/  — xóa set + toàn bộ cards
+    PATCH /api/flashcards/sets/<pk>/
     """
+
     permission_classes = [IsAuthenticated]
 
     def get_object(self, pk, user):
@@ -69,7 +72,7 @@ class FlashcardSetDetailView(APIView):
         if not fset:
             return Response(
                 {"error": "Không tìm thấy bộ flashcard."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
         serializer = FlashcardSetDetailSerializer(fset)
         return Response(serializer.data)
@@ -79,12 +82,37 @@ class FlashcardSetDetailView(APIView):
         if not fset:
             return Response(
                 {"error": "Không tìm thấy bộ flashcard."},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
         title = fset.title
         fset.delete()  # cascade xóa luôn toàn bộ FlashCard bên trong
         logger.info(f"FlashcardSet deleted: '{title}' by {request.user.email}")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def patch(self, request, pk):
+        """
+        PATCH /api/flashcards/sets/:id/
+        Body: { "title": "Tên mới" }
+              hoặc { "title": "Tên mới", "description": "Mô tả mới" }
+        """
+
+        fset = self.get_object(pk, request.user)
+        if not fset:
+            return Response(
+                {"error": "Không tìm thấy bộ flashcards"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = FlashcardSetSerializer(fset, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        logger.info(
+            f"FlashcardSet #{pk} updated: '{fset.title}' by {request.user.email}"
+        )
+
+        return Response(
+            {"id": fset.id, "title": fset.title, "description": fset.description}
+        )
 
 
 class GenerationSessionListView(APIView):
@@ -92,13 +120,14 @@ class GenerationSessionListView(APIView):
     GET /api/flashcards/sessions/
     Lịch sử các lần generate của user.
     """
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         sessions = GenerationSession.objects.filter(user=request.user)
 
         # Filter theo document nếu có
-        document_id = request.query_params.get('document_id')
+        document_id = request.query_params.get("document_id")
         if document_id:
             sessions = sessions.filter(document_id=document_id)
 

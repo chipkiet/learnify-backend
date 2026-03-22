@@ -117,3 +117,19 @@ class GenerationSessionSerializer(serializers.ModelSerializer):
 
     def get_document_title(self, obj):
         return obj.document.title if obj.document else None
+
+
+class FlashcardSetUpdateSerializer(serializers.ModelSerializer):
+    """Chỉ cho phép update title và description."""
+
+    class Meta:
+        model = FlashcardSet
+        field = ["title", "description"]
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Tên bộ thẻ không được để trống.")
+        if len(value) > 255:
+            raise serializers.ValidationError("Tên bộ thẻ tối đa 255 ký tự.")
+        return value
