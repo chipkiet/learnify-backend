@@ -1,10 +1,8 @@
 [phases.build]
-cmds = ["pip install -r requirements.txt"]
+cmds = ["pip install -r requirements.txt", "python manage.py collectstatic --noinput"]
 
 [phases.deploy]
 cmds = ["python manage.py migrate --noinput"]
 
 [start]
 cmd = "gunicorn core.wsgi:application --bind 0.0.0.0:${PORT:-8000}"
- service → **Variables** → thêm:
-PORT=8000
