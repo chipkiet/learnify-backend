@@ -143,7 +143,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 # ══════════════════════════════════════════════════════
 if IS_PRODUCTION:
     CORS_ALLOWED_ORIGINS = [
-        os.environ.get("FRONTEND_URL", ""),
+        os.environ.get("FRONTEND_URL", "").rstrip("/"),
     ]
 else:
     CORS_ALLOWED_ORIGINS = [
