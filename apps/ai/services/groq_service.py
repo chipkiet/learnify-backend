@@ -6,6 +6,9 @@ from groq import Groq
 from django.conf import settings
 from apps.ai.services.prompt_builder import build_prompt
 
+from apps.ai.models import ApiUsageLog
+
+
 logger = logging.getLogger(__name__)
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
@@ -47,6 +50,7 @@ def _validate_card(card: dict) -> bool:
 
 
 def generate_flashcards(
+    user,
     extracted_text: str,
     domain: str,
     card_types: list,
@@ -97,7 +101,26 @@ def generate_flashcards(
         )
 
         raw_text = response.choices[0].message.content
-        logger.info(f"[Groq] Response received — length={len(raw_text)}")
+        usage = response.usage
+        usage_data = {
+            "prompt_tokens": usage.prompt_tokens if usage else 0,
+            "completion_tokens": usage.completion_tokens if usage else 0,
+            "total_tokens": usage.total_tokens if usage else 0,
+        }
+
+        if usage_data["total_tokens"] > 0:
+            ApiUsageLog.objects.create(
+                user=user,
+                action="generate_flashcards",
+                model_used=GROQ_MODEL,
+                prompt_tokens=usage_data["prompt_tokens"],
+                completion_tokens=usage_data["completion_tokens"],
+                total_tokens=usage_data["total_tokens"],
+            )
+
+        logger.info(
+            f"[Groq] Response received — length={len(raw_text)}, total_tokens={usage_data['total_tokens']}"
+        )
 
         # Parse JSON
         cards = _parse_ai_response(raw_text)
@@ -120,29 +143,36 @@ def generate_flashcards(
         logger.info(f"[Groq] Done — {len(valid_cards)} valid cards")
 
         return {
-            "success":      True,
-            "cards":        valid_cards,
+            "success": True,
+            "cards": valid_cards,
             "raw_response": raw_text,
-            "model_used":   GROQ_MODEL,
-            "error":        None,
+            "model_used": GROQ_MODEL,
+            "usage": usage_data,
+            "error": None,
         }
 
     except json.JSONDecodeError as e:
         logger.error(f"[Groq] JSON parse error: {e}")
         return {
-            "success":      False,
-            "cards":        [],
-            "raw_response": raw_text if 'raw_text' in locals() else "",
-            "model_used":   GROQ_MODEL,
-            "error":        f"JSON parse error: {str(e)}",
+            "success": False,
+            "cards": [],
+            "raw_response": raw_text if "raw_text" in locals() else "",
+            "model_used": GROQ_MODEL,
+            "usage": (
+                usage_data
+                if "usage_data" in locals()
+                else {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+            ),
+            "error": f"JSON parse error: {str(e)}",
         }
 
     except Exception as e:
         logger.error(f"[Groq] API error: {e}")
         return {
-            "success":      False,
-            "cards":        [],
+            "success": False,
+            "cards": [],
             "raw_response": "",
-            "model_used":   GROQ_MODEL,
-            "error":        str(e),
+            "model_used": GROQ_MODEL,
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "error": str(e),
         }

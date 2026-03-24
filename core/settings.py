@@ -34,6 +34,9 @@ else:
 # APPLICATIONS
 # ══════════════════════════════════════════════════════
 DJANGO_APPS = [
+    "unfold",  # <-- BẮT BUỘC PHẢI ĐỨNG TRƯỚC django.contrib.admin
+    "unfold.contrib.filters",  # Cung cấp filter UI đẹp hơn
+    "unfold.contrib.forms",  # Cung cấp form UI đẹp hơn
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -214,3 +217,35 @@ if IS_PRODUCTION:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+
+
+# ══════════════════════════════════════════════════════
+# UNFOLD ADMIN SETTINGS
+# ══════════════════════════════════════════════════════
+from django.templatetags.static import static
+
+UNFOLD = {
+    "SITE_TITLE": "Learnify AI Admin",
+    "SITE_HEADER": "Learnify Management",
+    "SITE_URL": "/",
+    "SITE_ICON": {
+        "light": lambda request: static(
+            "icon-light.svg"
+        ),  # Bạn có thể thay bằng icon của bạn sau
+        "dark": lambda request: static("icon-dark.svg"),
+    },
+    "COLORS": {
+        "primary": {
+            "50": "250 253 255",
+            "100": "240 249 255",
+            "200": "224 242 254",
+            "300": "186 230 253",
+            "400": "125 211 252",
+            "500": "56 189 248",
+            "600": "2 132 199",  # Màu chủ đạo (Xanh dương hiện đại)
+            "700": "3 105 161",
+            "800": "7 89 133",
+            "900": "12 74 110",
+        },
+    },
+}

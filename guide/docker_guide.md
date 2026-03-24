@@ -74,17 +74,7 @@ docker-compose exec web python manage.py createsuperuser
 docker-compose exec web python manage.py shell
 
 
-### PHẦN 4 — Django có sẵn gì cho User?
-```
-Django built-in User model có sẵn các trường:
-├── id
-├── username
-├── email
-├── password (đã hash)
-├── first_name
-├── last_name
-├── is_active
-├── is_staff
-├── is_superuser
-├── date_joined
-└── last_login
+
+docker-compose exec web pip install django-unfold
+
+docker-compose exec web pip freeze > /app/requirements.txt
