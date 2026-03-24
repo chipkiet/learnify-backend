@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from apps.flashcards.models import GenerationSession
 
 VALID_DOMAINS = ["english", "academic", "other"]
 VALID_CARD_TYPES = ["vocabulary", "grammar", "phrase", "qa", "qa_en"]
@@ -22,6 +21,13 @@ class GenerateFlashcardSerializer(serializers.Serializer):
         required=False,
         default=list,
         max_length=10,
+    )
+
+    max_cards = serializers.IntegerField(
+        required=False,
+        default=10,
+        min_value=1,
+        max_value=20,
     )
 
     def validate_document_id(self, value):

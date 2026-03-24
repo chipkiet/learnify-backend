@@ -1,17 +1,16 @@
-# apps/ai/services/groq_service.py
-
 import json
 import logging
 from groq import Groq
 from django.conf import settings
 from apps.ai.services.prompt_builder import build_prompt
-
 from apps.ai.models import ApiUsageLog
 
 
 logger = logging.getLogger(__name__)
 
 GROQ_MODEL = "llama-3.3-70b-versatile"
+
+VALID_CARD_TYPES = {"vocabulary", "grammar", "phrase", "qa", "qa_en"}
 
 def _parse_ai_response(raw_text: str) -> list:
     """
@@ -56,7 +55,7 @@ def generate_flashcards(
     card_types: list,
     difficulty: str,
     keywords: list = None,
-    max_cards: int = 20,
+    max_cards: int = 10,
 ) -> dict:
     """
     Gọi Groq API → parse response → trả về dict kết quả.
@@ -89,14 +88,11 @@ def generate_flashcards(
             messages=[
                 {
                     "role": "system",
-                    "content": "Bạn là chuyên gia tạo flashcard học tập. Chỉ trả về JSON array, không có text nào khác."
+                    "content": "Bạn là chuyên gia tạo flashcard học tập. Chỉ trả về JSON array, không có text nào khác.",
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
-            temperature=0.4,     # thấp → output ổn định, ít hallucinate
+            temperature=0.4,
             max_tokens=4096,
         )
 
@@ -139,6 +135,12 @@ def generate_flashcards(
             # Giới hạn card_type trong choices hợp lệ
             if card["card_type"] not in ["vocabulary", "grammar", "phrase", "qa"]:
                 card["card_type"] = "vocabulary"
+
+        if len(valid_cards) > max_cards:
+            logger.warning(
+                f"[Groq] AI tạo {len(valid_cards)} cards nhưng chỉ giữ {max_cards}"
+            )
+            valid_cards = valid_cards[:max_cards]
 
         logger.info(f"[Groq] Done — {len(valid_cards)} valid cards")
 

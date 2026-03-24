@@ -30,6 +30,7 @@ class GenerateFlashcardView(APIView):
         card_types  = data['card_types']
         difficulty  = data['difficulty']
         keywords    = data.get('keywords', [])
+        max_cards = data.get("max_cards", 10)
 
         # ── Bước 2: Tạo GenerationSession ──────────────────
         session = GenerationSession.objects.create(
@@ -52,6 +53,7 @@ class GenerateFlashcardView(APIView):
             card_types=card_types,
             difficulty=difficulty,
             keywords=keywords,
+            max_cards=max_cards,
         )
 
         # ── Bước 4: Xử lý nếu AI thất bại ──────────────────
