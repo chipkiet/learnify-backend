@@ -1,4 +1,3 @@
-
 import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -47,11 +46,12 @@ class GenerateFlashcardView(APIView):
 
         # ── Bước 3: Gọi Groq API ────────────────────────────
         result = generate_flashcards(
-            extracted_text = document.extracted_text,
-            domain         = domain,
-            card_types     = card_types,
-            difficulty     = difficulty,
-            keywords       = keywords,
+            user=request.user,
+            extracted_text=document.extracted_text,
+            domain=domain,
+            card_types=card_types,
+            difficulty=difficulty,
+            keywords=keywords,
         )
 
         # ── Bước 4: Xử lý nếu AI thất bại ──────────────────
