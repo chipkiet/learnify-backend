@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 VALID_DOMAINS = ["english", "academic", "other"]
 VALID_CARD_TYPES = ["vocabulary", "grammar", "phrase", "qa", "qa_en"]
-VALID_DIFFICULTIES = ["easy", "intermediate", "hard"]
+VALID_DIFFICULTIES = ["easy", "medium", "hard"]
 
 
 class GenerateFlashcardSerializer(serializers.Serializer):
@@ -13,9 +13,7 @@ class GenerateFlashcardSerializer(serializers.Serializer):
         min_length=1,
         max_length=5,  # tăng từ 4 → 5 vì academic có thêm qa_en
     )
-    difficulty = serializers.ChoiceField(
-        choices=VALID_DIFFICULTIES, default="intermediate"
-    )
+    difficulty = serializers.ChoiceField(choices=VALID_DIFFICULTIES, default="medium")
     keywords = serializers.ListField(
         child=serializers.CharField(max_length=50),
         required=False,

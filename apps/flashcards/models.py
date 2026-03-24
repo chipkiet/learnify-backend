@@ -33,7 +33,7 @@ class GenerationSession(models.Model):
     domain = models.CharField(
         max_length=20, choices=Domain.choices, default=Domain.OTHER
     )
-    difficulty = models.CharField(max_length=20, default="intermediate")
+    difficulty = models.CharField(max_length=20, default="medium")
 
     # ── AI result ──────────────────────────────────────────
     status = models.CharField(
