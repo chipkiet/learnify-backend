@@ -11,7 +11,7 @@ from apps.ai.models import ApiUsageLog
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 def _parse_ai_response(raw_text: str) -> list:
     """
