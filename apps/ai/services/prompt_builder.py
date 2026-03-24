@@ -284,14 +284,19 @@ def build_prompt(
         keyword_note = f"\nƯu tiên tạo cards liên quan đến: {kw_str}.\n"
 
     # Per-card distribution note
+    # Buffer 25% để accommodation validation & filtering
+    target_cards = int(max_cards * 1.25) + 1
+
     if len(valid_card_types) > 1:
-        per_type = max(1, max_cards // len(valid_card_types))
+        per_type = max(1, target_cards // len(valid_card_types))
         distribution_note = (
             f"Phân bổ đều: khoảng {per_type} cards cho mỗi loại "
-            f"({', '.join(valid_card_types)}). Tổng không vượt {max_cards}."
+            f"({', '.join(valid_card_types)}). Tổng khoảng {target_cards} cards."
         )
     else:
-        distribution_note = f"Tạo tối đa {max_cards} cards loại {valid_card_types[0]}."
+        distribution_note = (
+            f"Tạo khoảng {target_cards} cards loại {valid_card_types[0]}."
+        )
 
     prompt = f"""Bạn là chuyên gia tạo flashcard học tập. Phân tích text sau và tạo flashcards chất lượng cao.
 
