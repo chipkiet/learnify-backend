@@ -249,3 +249,15 @@ UNFOLD = {
         },
     },
 }
+
+# ══════════════════════════════════════════════════════
+# Google Domain
+# ══════════════════════════════════════════════════════
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.environ.get(
+    "GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback/"
+)
+GOOGLE_LOGIN_REDIRECT_URL = os.environ.get(
+    "GOOGLE_LOGIN_REDIRECT_URL", "http://localhost:5173/auth/callback"
+)
