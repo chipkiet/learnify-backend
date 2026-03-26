@@ -60,8 +60,33 @@ CARD_MATRIX = {
     "english": {
         "vocabulary": """EN VOCAB | front: word/phrase | back: VI meaning + IPA if needed | example: sentence
 ✓ from text | ✗ no content/topic questions""",
-        "grammar": """EN GRAMMAR | front: structure name | back: formula + VI explanation | example: correct sentence
-✓ must appear in text | ✗ no made-up structures""",
+        "grammar": """
+EN GRAMMAR — Cấu trúc ngữ pháp
+front: Tên cấu trúc ngắn gọn
+       VD: "Present Simple", "Passive Voice — Past"
+
+back: Viết theo đúng format sau:
+      [CÔNG THỨC]
+      (+) Khẳng định: S + V(s/es)
+      (-) Phủ định:   S + don't/doesn't + V
+      (?) Nghi vấn:   Do/Does + S + V?
+
+      [KHI NÀO DÙNG]
+      • ...
+
+      [DẤU HIỆU NHẬN BIẾT]
+      always, usually, often, every...
+
+example: MINH HOẠ ĐÚNG CẤU TRÚC NGỮ PHÁP ĐÓ. Tạo một câu ví dụ thật sát với cấu trúc vừa học (có thể lấy từ document nếu đúng, hoặc tự tạo nội dung phù hợp).
+         → CHÚ Ý QUAN TRỌNG: PHẢI bọc phần thể hiện công thức/dấu hiệu ngữ pháp đang học bằng ký hiệu **text**.
+         VD: "She **will attend** the conference tomorrow." (để highlight "will attend")
+
+rules:
+- Khai thác trúng cấu trúc đang có trong text
+- Phải có đủ 3 phần: công thức + khi dùng + ví dụ
+- Công thức phải đầy đủ +/-/?
+- KHÔNG BAO GIỜ quên bọc highlight **text** trong câu ví dụ.
+""",
         "phrase": """EN PHRASE | front: phrase (2+ words) | back: VI meaning + usage context | example: natural sentence
 ✓ from text | ✗ single words only""",
         "qa": """EN QA | front: question in English | back: full English answer | example: (empty)
@@ -107,6 +132,7 @@ DOMAIN_REMINDER = {
 ⚠️ NO RIGID FORMAT: Follow text strictly. Use Vietnamese. No outside knowledge.
    Keep close to original content.""",
 }
+
 
 # ══════════════════════════════════════════════════════
 # BUILD PROMPT
@@ -177,7 +203,7 @@ def build_prompt(
 1. CHỈ dùng nội dung THỰC SỰ CÓ trong text.
 2. Mỗi card độc lập, đầy đủ, học được ngay.
 3. Tuân thủ ĐÚNG ngôn ngữ được chỉ định.
-4. card_type phải là: {', '.join(f'"{t}"' for t in valid_card_types)}.
+4. card_type phải là: {", ".join(f'"{t}"' for t in valid_card_types)}.
 5. difficulty phải là: "easy", "medium", "hard".
 6. Trả về CHỈ JSON array — không markdown.
 
@@ -187,7 +213,7 @@ def build_prompt(
     "card_type": "{valid_card_types[0]}",
     "front": "nội dung mặt trước",
     "back": "nội dung mặt sau",
-    "example": "ví dụ hoặc empty string",
+    "example": "ví dụ",
     "difficulty": "easy"
   }}
 ]

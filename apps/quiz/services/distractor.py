@@ -18,11 +18,32 @@ import re
 from apps.flashcards.models import FlashCard
 
 
-def parse_back_main(text: str) -> str:
+def parse_back_main(text: str, card_type: str = "vocabulary") -> str:
     """
-    Lấy phần chính của back text, bỏ phần giải thích trong ngoặc.
-    "Paris (thủ đô nước Pháp)" → "Paris"
+    Lấy phần chính của back text để hiển thị trong quiz options.
+
+    - Grammar cards: lấy dòng (+) khẳng định (công thức ngắn gọn)
+    - Other cards  : bỏ phần giải thích trong ngoặc, lấy phần đầu
     """
+    if not text:
+        return "—"
+
+    if card_type == "grammar":
+        # Trích dòng (+) từ [CÔNG THỨC], ví dụ: "(+) Khẳng định: S + V2/ed"
+        for line in text.splitlines():
+            line = line.strip()
+            if line.startswith("(+)"):
+                # Bỏ "(+) Khẳng định: " prefix nếu có
+                formula = re.sub(r"^\(\+\)\s*(Khẳng định:?\s*)?", "", line).strip()
+                return formula if formula else line
+        # Fallback: dòng đầu tiên không rỗng
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith("["):
+                return line[:80]
+        return text.splitlines()[0][:80]
+
+    # Vocab / phrase / qa: bỏ phần trong ngoặc cuối
     m = re.match(r"^(.*?)\s*\([^)]+\)\s*$", text.strip(), re.DOTALL)
     return m.group(1).strip() if m else text.strip()
 
@@ -82,8 +103,8 @@ def build_options(correct_card: FlashCard, distractor_cards: list) -> dict:
             correct_answer: str,   # phần main của correct back
         }
     """
-    correct_text = parse_back_main(correct_card.back)
-    distractor_texts = [parse_back_main(c.back) for c in distractor_cards[:3]]
+    correct_text = parse_back_main(correct_card.back, correct_card.card_type)
+    distractor_texts = [parse_back_main(c.back, c.card_type) for c in distractor_cards[:3]]
 
     # Pad nếu thiếu distractor (set quá ít cards)
     while len(distractor_texts) < 3:
