@@ -26,6 +26,7 @@ if IS_PRODUCTION:
     ALLOWED_HOSTS = [
         os.environ.get("RAILWAY_PUBLIC_DOMAIN", ""),
         ".railway.app",
+        "api.learnify.info.vn",
     ]
 else:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
