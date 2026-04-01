@@ -13,6 +13,7 @@ from apps.flashcards.models import FlashcardSet, FlashCard, GenerationSession
 from apps.flashcards.serializers import (
     FlashcardSetSerializer,
     FlashcardSetDetailSerializer,
+    FlashcardSetUpdateSerializer,
     GenerationSessionSerializer,
 )
 
@@ -102,7 +103,7 @@ class FlashcardSetDetailView(APIView):
                 {"error": "Không tìm thấy bộ flashcards"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        serializer = FlashcardSetSerializer(fset, data=request.data, partial=True)
+        serializer = FlashcardSetUpdateSerializer(fset, data=request.data, partial=True)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         serializer.save()

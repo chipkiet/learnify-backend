@@ -124,7 +124,7 @@ class FlashcardSetUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlashcardSet
-        field = ["title", "description"]
+        fields = ["title", "description"]
 
     def validate_title(self, value):
         value = value.strip()
