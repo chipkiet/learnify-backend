@@ -55,6 +55,19 @@ class GenerationSession(models.Model):
         ordering = ["-created_at"]
 
 
+class FlashcardFolder(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="flashcard_folders")
+    name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
 class FlashcardSet(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
@@ -78,6 +91,13 @@ class FlashcardSet(models.Model):
         blank=True,
         related_name="flashcard_set",
     )
+    folder = models.ForeignKey(
+        FlashcardFolder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="flashcard_sets",
+    )
     tags = models.ManyToManyField(Tag, blank=True, related_name="flashcard_sets")
 
     # ── Metadata ───────────────────────────────────────────
@@ -87,6 +107,7 @@ class FlashcardSet(models.Model):
         max_length=20, blank=True
     )  # free text — không cần choices
     is_public = models.BooleanField(default=False)
+    is_pinned = models.BooleanField(default=False)
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.DRAFT
     )

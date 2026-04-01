@@ -9,12 +9,15 @@ from django.utils import timezone
 from django.db.models import Count, Q
 
 
-from apps.flashcards.models import FlashcardSet, FlashCard, GenerationSession
+from apps.flashcards.models import FlashcardSet, GenerationSession, FlashcardFolder
+from rest_framework.viewsets import ModelViewSet
+
 from apps.flashcards.serializers import (
     FlashcardSetSerializer,
     FlashcardSetDetailSerializer,
     FlashcardSetUpdateSerializer,
     GenerationSessionSerializer,
+    FlashcardFolderSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -114,6 +117,20 @@ class FlashcardSetDetailView(APIView):
         return Response(
             {"id": fset.id, "title": fset.title, "description": fset.description}
         )
+
+
+class FlashcardFolderViewSet(ModelViewSet):
+    """
+    CRUD cho FlashcardFolder.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = FlashcardFolderSerializer
+
+    def get_queryset(self):
+        return FlashcardFolder.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
 
 class GenerationSessionListView(APIView):

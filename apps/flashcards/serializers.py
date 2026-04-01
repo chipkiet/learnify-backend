@@ -1,7 +1,7 @@
 # apps/flashcards/serializers.py
 
 from rest_framework import serializers
-from apps.flashcards.models import GenerationSession, FlashcardSet, FlashCard
+from apps.flashcards.models import GenerationSession, FlashcardSet, FlashCard, FlashcardFolder
 
 
 class FlashCardSerializer(serializers.ModelSerializer):
@@ -14,6 +14,13 @@ class FlashCardSerializer(serializers.ModelSerializer):
             'created_at',
         ]
         read_only_fields = fields
+
+
+class FlashcardFolderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlashcardFolder
+        fields = ['id', 'user', 'name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
 
 
 class FlashcardSetSerializer(serializers.ModelSerializer):
@@ -31,6 +38,8 @@ class FlashcardSetSerializer(serializers.ModelSerializer):
             "domain",
             "status",
             "is_public",
+            "is_pinned",
+            "folder",
             "total_cards",
             "document_title",
             "progress",
@@ -79,7 +88,7 @@ class FlashcardSetDetailSerializer(serializers.ModelSerializer):
         model  = FlashcardSet
         fields = [
             'id', 'title', 'description', 'domain',
-            'status', 'is_public',
+            'status', 'is_public', 'is_pinned', 'folder',
             'total_cards', 'cards_by_type',
             'document_title',
             'cards',
@@ -124,7 +133,7 @@ class FlashcardSetUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FlashcardSet
-        fields = ["title", "description"]
+        fields = ["title", "description", "is_pinned", "folder"]
 
     def validate_title(self, value):
         value = value.strip()
