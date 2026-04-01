@@ -239,6 +239,6 @@ def build_prompt(
 
 
 ## NỘI DUNG TÀI LIỆU
-{extracted_text[:6000]}
+{extracted_text}
 """
     return prompt
