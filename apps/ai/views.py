@@ -45,6 +45,15 @@ class GenerateFlashcardView(APIView):
         )
         logger.info(f"[AI] Session created: #{session.id} — doc={document.id} user={request.user.email}")
 
+        # ── Bước 2.5: Query existing cards của document này ──
+        existing_cards = list(
+            FlashCard.objects.filter(
+                set__document=document,
+                user=request.user,
+            ).values("front", "back")
+        )
+        logger.info(f"[AI] Found {len(existing_cards)} existing cards for doc={document.id}")
+
         # ── Bước 3: Gọi Groq API ────────────────────────────
         result = generate_flashcards(
             user=request.user,
@@ -54,6 +63,7 @@ class GenerateFlashcardView(APIView):
             difficulty=difficulty,
             keywords=keywords,
             max_cards=max_cards,
+            existing_cards=existing_cards,
         )
 
         # ── Bước 4: Xử lý nếu AI thất bại ──────────────────
@@ -105,11 +115,21 @@ class GenerateFlashcardView(APIView):
         logger.info(f"[AI] Done: session=#{session.id} | {len(cards_to_create)} cards created")
 
         # ── Bước 8: Trả về response ──────────────────────────
+        meta = result.get("meta", {})
+
+        if meta.get("is_exhausted"):
+            message = "Tài liệu này đã được khai thác hết. Không còn nội dung mới!"
+        elif meta.get("is_partial"):
+            message = f"Chỉ tìm được {meta['delivered']} cards mới (đã bỏ qua {meta['duplicates_removed']} cards trùng lặp)."
+        else:
+            message = f"Đã tạo thành công {len(cards_to_create)} flashcards!"
+
         return Response({
             "session_id":     session.id,
             "flashcard_set_id": flashcard_set.id,
             "total_cards":    len(cards_to_create),
             "domain":         domain,
             "card_types":     card_types,
-            "message":        f"Đã tạo thành công {len(cards_to_create)} flashcards!",
+            "message":        message,
+            "meta":           meta,
         }, status=status.HTTP_201_CREATED)

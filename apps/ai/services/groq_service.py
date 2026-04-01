@@ -56,6 +56,7 @@ def generate_flashcards(
     difficulty: str,
     keywords: list = None,
     max_cards: int = 10,
+    existing_cards: list = None,
 ) -> dict:
     """
     Gọi Groq API → parse response → trả về dict kết quả.
@@ -78,6 +79,7 @@ def generate_flashcards(
         difficulty=difficulty,
         keywords=keywords or [],
         max_cards=max_cards,
+        existing_cards=existing_cards or [],
     )
 
     logger.info(f"[Groq] Calling API — model={GROQ_MODEL} | domain={domain} | card_types={card_types}")
@@ -136,6 +138,21 @@ def generate_flashcards(
             if card["card_type"] not in ["vocabulary", "grammar", "phrase", "qa"]:
                 card["card_type"] = "vocabulary"
 
+        # Dedup cứng với existing cards
+        unique_cards = valid_cards
+        duplicates_removed = 0
+        if existing_cards:
+            existing_fronts = {c["front"].lower().strip() for c in existing_cards}
+            unique_cards = [
+                c for c in valid_cards
+                if c["front"].lower().strip() not in existing_fronts
+            ]
+            duplicates_removed = len(valid_cards) - len(unique_cards)
+            if duplicates_removed > 0:
+                logger.info(f"[Groq] Dedup: removed {duplicates_removed} duplicate cards")
+
+        valid_cards = unique_cards
+
         if len(valid_cards) > max_cards:
             logger.warning(
                 f"[Groq] AI tạo {len(valid_cards)} cards nhưng chỉ giữ {max_cards}"
@@ -144,6 +161,12 @@ def generate_flashcards(
 
         logger.info(f"[Groq] Done — {len(valid_cards)} valid cards")
 
+        # Tính exhausted status
+        requested = max_cards
+        delivered = len(valid_cards)
+        is_exhausted = delivered == 0
+        is_partial = 0 < delivered < requested
+
         return {
             "success": True,
             "cards": valid_cards,
@@ -151,6 +174,13 @@ def generate_flashcards(
             "model_used": GROQ_MODEL,
             "usage": usage_data,
             "error": None,
+            "meta": {
+                "requested": requested,
+                "delivered": delivered,
+                "duplicates_removed": duplicates_removed,
+                "is_exhausted": is_exhausted,
+                "is_partial": is_partial,
+            }
         }
 
     except json.JSONDecodeError as e:

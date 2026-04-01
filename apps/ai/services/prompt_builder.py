@@ -23,6 +23,7 @@ VẤN ĐỀ CỦA PHIÊN BẢN CŨ (đã fix):
 """
 
 from typing import List
+import json
 
 # ══════════════════════════════════════════════════════
 # DOMAIN LABELS  (hiển thị trong prompt)
@@ -144,6 +145,7 @@ def build_prompt(
     difficulty: str,
     keywords: List[str] = None,
     max_cards: int = 20,
+    existing_cards: List[dict] = None,
 ) -> str:
     """
     Build prompt gửi cho Groq.
@@ -186,6 +188,21 @@ def build_prompt(
     else:
         distribution_note = f"Target ~{target_cards} {valid_card_types[0]} cards."
 
+    # Existing cards block
+    existing_block = ""
+    if existing_cards:
+        # Chỉ gửi front + back để tiết kiệm tokens
+        simplified = [
+            {"front": c["front"], "back": c["back"]}
+            for c in existing_cards[:80]  # cap 80 cards, tránh bloat prompt
+        ]
+        existing_block = f"""
+## ❌ FLASHCARDS ĐÃ TỒN TẠI (KHÔNG tạo lại hoặc tương tự)
+{json.dumps(simplified, ensure_ascii=False, indent=2)}
+
+→ Tạo cards KHÁC HOÀN TOÀN về nội dung và cách diễn đạt.
+"""
+
     prompt = f"""Bạn là chuyên gia tạo flashcard học tập. Phân tích text và tạo flashcards chất lượng cao.
 
 ## THÔNG TIN
@@ -198,6 +215,8 @@ def build_prompt(
 
 ## LOẠI CARDS CẦN TẠO
 {card_instructions.strip()}
+
+{existing_block}
 
 ## YÊU CẦU
 1. CHỈ dùng nội dung THỰC SỰ CÓ trong text.
@@ -217,6 +236,7 @@ def build_prompt(
     "difficulty": "easy"
   }}
 ]
+
 
 ## NỘI DUNG TÀI LIỆU
 {extracted_text[:6000]}
