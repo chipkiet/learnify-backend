@@ -25,4 +25,5 @@ urlpatterns = [
     path("api/flashcards/", include("apps.flashcards.urls")),
     path("api/study/", include("apps.study.urls")),
     path("api/quiz/", include("apps.quiz.urls")),
+    path("api/admin-panel/", include("apps.admin_panel.urls")),
 ]

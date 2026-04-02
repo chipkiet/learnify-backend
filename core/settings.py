@@ -60,6 +60,7 @@ LOCAL_APPS = [
     "apps.ai",
     "apps.study",
     "apps.quiz",
+    "apps.admin_panel",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -148,6 +149,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 if IS_PRODUCTION:
     CORS_ALLOWED_ORIGINS = [
         os.environ.get("FRONTEND_URL", "").rstrip("/"),
+        "https://admin.learnify.info.vn",
     ]
     CORS_ALLOWED_ORIGIN_REGEXES = [
         r"^https://.*\.vercel\.app$",
@@ -156,6 +158,8 @@ else:
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",   # learnify-admin dev
+        "http://127.0.0.1:5174",
     ]
 
 CORS_ALLOW_CREDENTIALS = True
