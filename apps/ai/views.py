@@ -116,20 +116,30 @@ class GenerateFlashcardView(APIView):
 
         # ── Bước 8: Trả về response ──────────────────────────
         meta = result.get("meta", {})
+        new_count    = meta.get("new_count", len(cards_to_create))
+        reused_count = meta.get("reused_count", 0)
 
         if meta.get("is_exhausted"):
             message = "Tài liệu này đã được khai thác hết. Không còn nội dung mới!"
-        elif meta.get("is_partial"):
-            message = f"Chỉ tìm được {meta['delivered']} cards mới (đã bỏ qua {meta['duplicates_removed']} cards trùng lặp)."
+        elif reused_count > 0 and new_count > 0:
+            message = (
+                f"Tạo được {new_count} cards mới, "
+                f"bổ sung thêm {reused_count} cards từ bộ trước để đủ {len(cards_to_create)}."
+            )
+        elif reused_count > 0 and new_count == 0:
+            message = (
+                f"Không còn từ mới — bổ sung {reused_count} cards từ bộ trước."
+            )
         else:
             message = f"Đã tạo thành công {len(cards_to_create)} flashcards!"
 
         return Response({
-            "session_id":     session.id,
+            "session_id":       session.id,
             "flashcard_set_id": flashcard_set.id,
-            "total_cards":    len(cards_to_create),
-            "domain":         domain,
-            "card_types":     card_types,
-            "message":        message,
-            "meta":           meta,
+            "total_cards":      len(cards_to_create),
+            "domain":           domain,
+            "card_types":       card_types,
+            "message":          message,
+            "meta":             meta,
         }, status=status.HTTP_201_CREATED)
+

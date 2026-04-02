@@ -8,9 +8,10 @@ from apps.ai.models import ApiUsageLog
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.1-8b-instant"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 VALID_CARD_TYPES = {"vocabulary", "grammar", "phrase", "qa", "qa_en"}
+
 
 def _parse_ai_response(raw_text: str) -> list:
     """
@@ -27,12 +28,12 @@ def _parse_ai_response(raw_text: str) -> list:
 
     # Tìm array JSON trong text
     start = text.find("[")
-    end   = text.rfind("]") + 1
+    end = text.rfind("]") + 1
     if start == -1 or end == 0:
         raise ValueError(f"Không tìm thấy JSON array trong response: {text[:200]}")
 
     json_str = text[start:end]
-    cards    = json.loads(json_str)
+    cards = json.loads(json_str)
 
     if not isinstance(cards, list):
         raise ValueError("Response không phải JSON array")
@@ -52,15 +53,50 @@ def _chunk_text(text: str, chunk_size: int = 5000, overlap: int = 200) -> list[s
     """Chia text thành các chunks có overlap."""
     if len(text) <= chunk_size:
         return [text]
-    
+
     chunks = []
     start = 0
     while start < len(text):
         end = start + chunk_size
         chunks.append(text[start:end])
         start += chunk_size - overlap  # overlap để không mất context ở ranh giới
-    
+
     return chunks
+
+
+def _fill_to_max(
+    new_cards: list,
+    existing_cards: list,
+    max_cards: int,
+) -> tuple:
+    """
+    Nếu new_cards < max_cards, bổ sung từ existing_cards cho đủ.
+    Returns: (final_cards, reused_count)
+    """
+    needed = max_cards - len(new_cards)
+    if needed <= 0 or not existing_cards:
+        for card in new_cards:
+            card["is_reused"] = False
+        return new_cards, 0
+
+    # Tránh duplicate với new_cards vừa tạo
+    new_fronts = {c["front"].lower().strip() for c in new_cards}
+
+    candidates = [
+        c for c in existing_cards if c["front"].lower().strip() not in new_fronts
+    ]
+
+    # Lấy đủ số cần thiết
+    reused = candidates[:needed]
+
+    # Đánh dấu reused để frontend hiển thị badge
+    for card in reused:
+        card["is_reused"] = True
+
+    for card in new_cards:
+        card["is_reused"] = False
+
+    return new_cards + reused, len(reused)
 
 
 def generate_flashcards(
@@ -97,7 +133,7 @@ def generate_flashcards(
     chunk_target_cards = max(2, (max_cards + len(chunks) - 1) // len(chunks))
 
     for i, chunk in enumerate(chunks):
-        logger.info(f"[Groq] Processing chunk {i+1}/{len(chunks)}")
+        logger.info(f"[Groq] Processing chunk {i + 1}/{len(chunks)}")
 
         prompt = build_prompt(
             extracted_text=chunk,
@@ -130,20 +166,22 @@ def generate_flashcards(
                 total_usage_data["prompt_tokens"] += usage.prompt_tokens
                 total_usage_data["completion_tokens"] += usage.completion_tokens
                 total_usage_data["total_tokens"] += usage.total_tokens
-                logger.info(f"[Groq] Chunk {i+1} tokens: {usage.total_tokens}")
+                logger.info(f"[Groq] Chunk {i + 1} tokens: {usage.total_tokens}")
 
             cards = _parse_ai_response(raw_text)
             valid_chunk_cards = [c for c in cards if _validate_card(c)]
-            
+
             invalid_count = len(cards) - len(valid_chunk_cards)
             if invalid_count > 0:
-                logger.warning(f"[Groq] Chunk {i+1}: {invalid_count} cards bị loại do thiếu fields")
+                logger.warning(
+                    f"[Groq] Chunk {i + 1}: {invalid_count} cards bị loại do thiếu fields"
+                )
 
             all_cards.extend(valid_chunk_cards)
             successful_chunks += 1
 
         except Exception as e:
-            logger.warning(f"[Groq] Chunk {i+1} failed: {e} — skipping")
+            logger.warning(f"[Groq] Chunk {i + 1} failed: {e} — skipping")
             continue
 
     if successful_chunks == 0:
@@ -173,10 +211,14 @@ def generate_flashcards(
         if card["card_type"] not in ["vocabulary", "grammar", "phrase", "qa"]:
             card["card_type"] = "vocabulary"
 
-    # Dedup cứng với existing cards và internal duplicates của các chunk
+    # ── Hard dedup ──────────────────────────────────────
     unique_cards = []
-    seen_fronts = {c["front"].lower().strip() for c in existing_cards} if existing_cards else set()
-    
+    seen_fronts = (
+        {c["front"].lower().strip() for c in existing_cards}
+        if existing_cards
+        else set()
+    )
+
     duplicates_removed = 0
     for c in all_cards:
         front = c["front"].lower().strip()
@@ -189,32 +231,41 @@ def generate_flashcards(
     if duplicates_removed > 0:
         logger.info(f"[Groq] Dedup: removed {duplicates_removed} duplicate cards")
 
-    valid_cards = unique_cards
+    # ── Fill to max_cards với existing cards ─────────────
+    final_cards, reused_count = _fill_to_max(
+        new_cards=unique_cards,
+        existing_cards=existing_cards or [],
+        max_cards=max_cards,
+    )
 
-    if len(valid_cards) > max_cards:
-        logger.warning(f"[Groq] AI tạo {len(valid_cards)} cards nhưng chỉ giữ {max_cards}")
-        valid_cards = valid_cards[:max_cards]
+    # ── Truncate nếu vượt max ────────────────────────────
+    if len(final_cards) > max_cards:
+        final_cards = final_cards[:max_cards]
 
-    logger.info(f"[Groq] Done — {len(valid_cards)} valid cards out of {len(all_cards)}")
+    # ── Meta ─────────────────────────────────────────────
+    new_count = len(unique_cards)
+    delivered = len(final_cards)
+    is_exhausted = new_count == 0 and reused_count == 0
+    is_partial = delivered < max_cards
 
-    # Tính exhausted status
-    requested = max_cards
-    delivered = len(valid_cards)
-    is_exhausted = delivered == 0
-    is_partial = 0 < delivered < requested
+    logger.info(
+        f"[Groq] Done — new={new_count}, reused={reused_count}, total={delivered}"
+    )
 
     return {
         "success": True,
-        "cards": valid_cards,
+        "cards": final_cards,
         "raw_response": f"Generated successfully from {len(chunks)} chunks using {total_usage_data['total_tokens']} tokens.",
         "model_used": GROQ_MODEL,
         "usage": total_usage_data,
         "error": None,
         "meta": {
-            "requested": requested,
+            "requested": max_cards,
             "delivered": delivered,
+            "new_count": new_count,
+            "reused_count": reused_count,
             "duplicates_removed": duplicates_removed,
             "is_exhausted": is_exhausted,
             "is_partial": is_partial,
-        }
+        },
     }
