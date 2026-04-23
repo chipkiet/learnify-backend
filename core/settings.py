@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # ENVIRONMENT DETECTION
 # ══════════════════════════════════════════════════════
 IS_PRODUCTION = bool(
-    os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("PRODUCTION")
+    os.environ.get("RENDER") or os.environ.get("PRODUCTION")
 )
 
 # ══════════════════════════════════════════════════════
@@ -24,8 +24,8 @@ DEBUG = not IS_PRODUCTION
 
 if IS_PRODUCTION:
     ALLOWED_HOSTS = [
-        os.environ.get("RAILWAY_PUBLIC_DOMAIN", ""),
-        ".railway.app",
+        os.environ.get("RENDER_EXTERNAL_HOSTNAME", ""),  # Render tự inject biến này
+        ".onrender.com",
         "api.learnify.info.vn",
     ]
 else:
@@ -112,8 +112,10 @@ if IS_PRODUCTION:
     DATABASES = {
         "default": dj_database_url.config(
             default=os.environ.get("DATABASE_URL"),
-            conn_max_age=600,
-            conn_health_checks=True,
+            # Supabase Transaction Pooler không hỗ trợ persistent connections
+            # → conn_max_age=0 để tạo connection mới mỗi request
+            conn_max_age=0,
+            conn_health_checks=False,
         )
     }
 else:
@@ -140,8 +142,21 @@ if IS_PRODUCTION:
 # ══════════════════════════════════════════════════════
 # MEDIA FILES (uploaded documents)
 # ══════════════════════════════════════════════════════
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+if IS_PRODUCTION:
+    # Production: Lưu trên Supabase Storage (Render dùng ephemeral disk)
+    DEFAULT_FILE_STORAGE = "core.supabase_storage.SupabaseStorage"
+    MEDIA_URL = f"{os.environ.get('SUPABASE_URL', '')}/storage/v1/object/public/{os.environ.get('SUPABASE_BUCKET', 'learnify-media')}/"
+else:
+    # Local dev: Lưu trên disk như bình thường
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = BASE_DIR / "media"
+
+# ══════════════════════════════════════════════════════
+# SUPABASE CONFIG
+# ══════════════════════════════════════════════════════
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "learnify-media")
 
 # ══════════════════════════════════════════════════════
 # CORS
