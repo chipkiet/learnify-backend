@@ -16,8 +16,20 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+import time
+
+# ── Health check endpoint ──────────────────────────────────────────────────
+# Dùng cho UptimeRobot ping mỗi 5 phút để giữ Render free tier luôn awake.
+# KHÔNG query DB, KHÔNG cần auth → response ~5ms, tốn tài nguyên tối thiểu.
+def health_check(request):
+    return JsonResponse({
+        "status": "ok",
+        "timestamp": int(time.time()),
+    })
 
 urlpatterns = [
+    path("health/", health_check, name="health-check"),
     path("admin/", admin.site.urls),
     path("api/auth/", include("apps.users.urls")),
     path("api/documents/", include("apps.documents.urls")),
