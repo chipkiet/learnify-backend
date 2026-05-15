@@ -223,6 +223,10 @@ SIMPLE_JWT = {
 # ══════════════════════════════════════════════════════
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
+# ── Resend (Email delivery) ────────────────────────────
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Learnify <no-reply@learnify.info.vn>")
+
 # ══════════════════════════════════════════════════════
 # INTERNATIONALISATION
 # ══════════════════════════════════════════════════════

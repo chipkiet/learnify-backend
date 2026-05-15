@@ -42,6 +42,7 @@ def get_or_create_user(user_info: dict) -> tuple[User, bool]:
             "avatar": avatar,
             "auth_provider": AuthProvider.GOOGLE,
             "is_active": True,
+            "email_verified": True,  # Google đã xác thực email rồi
         },
     )
 
@@ -49,11 +50,14 @@ def get_or_create_user(user_info: dict) -> tuple[User, bool]:
         user.set_unusable_password()  # khoá login bằng password
         user.save(update_fields=["password"])
     else:
-        # Đăng nhập lại → cập nhật avatar nếu thay đổi
+        # Đăng nhập lại → cập nhật avatar + đảm bảo email_verified = True
         updated_fields = []
         if avatar and user.avatar != avatar:
             user.avatar = avatar
             updated_fields.append("avatar")
+        if not user.email_verified:
+            user.email_verified = True
+            updated_fields.append("email_verified")
         if updated_fields:
             user.save(update_fields=updated_fields)
 
