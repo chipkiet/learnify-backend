@@ -11,6 +11,9 @@ from apps.users.views import (
     VerifyEmailOTPView,
     ForgotPasswordView,
     ResetPasswordView,
+    UploadAvatarView,
+    SendPhoneOTPView,
+    VerifyPhoneOTPView,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -21,9 +24,16 @@ urlpatterns = [
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("me/", ProfileView.as_view(), name="profile"),
 
+    # Avatar upload
+    path("avatar/upload/", UploadAvatarView.as_view(), name="avatar-upload"),
+
     # Email OTP verification (requires auth)
     path("otp/send-email/", SendEmailOTPView.as_view(), name="otp-send-email"),
     path("otp/verify-email/", VerifyEmailOTPView.as_view(), name="otp-verify-email"),
+
+    # Phone SMS OTP verification (requires auth)
+    path("otp/send-phone/", SendPhoneOTPView.as_view(), name="otp-send-phone"),
+    path("otp/verify-phone/", VerifyPhoneOTPView.as_view(), name="otp-verify-phone"),
 
     # Forgot / Reset password (public)
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),

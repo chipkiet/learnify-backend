@@ -29,6 +29,11 @@ from apps.users.services.password_reset_service import (
     initiate_reset,
     confirm_reset,
 )
+from apps.users.services.sms_service import (
+    SMSError,
+    send_sms_otp,
+    is_valid_vietnamese_phone,
+)
 
 User = get_user_model()
 
@@ -231,6 +236,135 @@ class ResetPasswordView(APIView):
 
         return Response(
             {"message": "Mật khẩu đã được đặt lại thành công. Bạn có thể đăng nhập với mật khẩu mới."},
+            status=status.HTTP_200_OK,
+        )
+
+
+# ── Avatar Upload ──────────────────────────────────────────────────────────────
+
+class UploadAvatarView(APIView):
+    """Upload ảnh đại diện lên Supabase avatars bucket (public)."""
+    permission_classes = [IsAuthenticated]
+
+    ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    MAX_SIZE_MB = 2
+
+    def post(self, request):
+        file = request.FILES.get("avatar")
+        if not file:
+            return Response({"error": "Không tìm thấy file ảnh."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file.content_type not in self.ALLOWED_TYPES:
+            return Response(
+                {"error": "Chỉ chấp nhận file JPG, PNG, WebP hoặc GIF."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if file.size > self.MAX_SIZE_MB * 1024 * 1024:
+            return Response(
+                {"error": f"Ảnh không được lớn hơn {self.MAX_SIZE_MB}MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            from supabase import create_client
+            import uuid, os
+
+            supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+            bucket = settings.SUPABASE_AVATARS_BUCKET
+
+            ext = os.path.splitext(file.name)[-1].lower() or ".jpg"
+            path = f"{request.user.id}/{uuid.uuid4().hex}{ext}"
+
+            supabase.storage.from_(bucket).upload(
+                path=path,
+                file=file.read(),
+                file_options={"content-type": file.content_type, "upsert": "true"},
+            )
+
+            public_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}"
+
+            request.user.avatar = public_url
+            request.user.save(update_fields=["avatar"])
+
+            return Response({"avatar": public_url}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response(
+                {"error": "Không thể upload ảnh. Vui lòng thử lại."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+# ── Phone SMS OTP ──────────────────────────────────────────────────────────────
+
+class SendPhoneOTPView(APIView):
+    """Gửi OTP qua SMS đến số điện thoại của user."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        if user.phone_verified:
+            return Response(
+                {"message": "Số điện thoại của bạn đã được xác thực rồi."},
+                status=status.HTTP_200_OK,
+            )
+
+        phone = user.phone_number
+        if not phone:
+            return Response(
+                {"error": "Bạn chưa cập nhật số điện thoại. Vui lòng vào tab Hồ sơ để thêm số điện thoại trước."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not is_valid_vietnamese_phone(phone):
+            return Response(
+                {"error": "Số điện thoại không hợp lệ. Vui lòng cập nhật lại ở tab Hồ sơ."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            otp_code = generate_otp(user, purpose="verify_phone")
+            send_sms_otp(phone, otp_code)
+            return Response(
+                {"message": f"Mã OTP đã gửi đến {phone}. Vui lòng kiểm tra tin nhắn SMS."},
+                status=status.HTTP_200_OK,
+            )
+        except SMSError as e:
+            return Response({"error": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except Exception:
+            return Response(
+                {"error": "Không thể gửi SMS. Vui lòng thử lại sau."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class VerifyPhoneOTPView(APIView):
+    """Xác thực OTP gửi qua SMS để verify số điện thoại."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.users.serializers.auth_serializers import OTPVerifySerializer
+        serializer = OTPVerifySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        otp_code = serializer.validated_data["otp_code"]
+
+        if not user.is_otp_valid(otp_code, purpose="verify_phone"):
+            return Response(
+                {"error": "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.phone_verified = True
+        user.save(update_fields=["phone_verified"])
+        user.clear_otp()
+
+        return Response(
+            {"message": "Số điện thoại đã được xác thực thành công!"},
             status=status.HTTP_200_OK,
         )
 

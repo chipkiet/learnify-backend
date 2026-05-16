@@ -227,6 +227,14 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Learnify <no-reply@learnify.info.vn>")
 
+# ── eSMS (SMS OTP - Vietnam) ───────────────────────────
+ESMS_API_KEY    = os.environ.get("ESMS_API_KEY", "")
+ESMS_SECRET_KEY = os.environ.get("ESMS_SECRET_KEY", "")
+ESMS_BRAND_NAME = os.environ.get("ESMS_BRAND_NAME", "Learnify")
+
+# ── Supabase Avatars bucket (public) ──────────────────
+SUPABASE_AVATARS_BUCKET = os.environ.get("SUPABASE_AVATARS_BUCKET", "avatars")
+
 # ══════════════════════════════════════════════════════
 # INTERNATIONALISATION
 # ══════════════════════════════════════════════════════
