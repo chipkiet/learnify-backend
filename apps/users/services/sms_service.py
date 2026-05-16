@@ -71,8 +71,9 @@ def _send_via_esms(phone: str, message: str) -> None:
         "SecretKey": secret_key,
         "Phone":     normalized_phone,
         "Content":   message,
-        "SmsType":   "4",          # 4 = Đầu số ngẫu nhiên (không cần brandname)
-        # "Brandname": settings.ESMS_BRAND_NAME,  # Bỏ comment khi brandname đã được duyệt
+        "SmsType":   "8",          # 8 = Đầu số ngẫu nhiên (không cần brandname, dùng cho tài khoản mới)
+        # "SmsType":   "2",        # 2 = OTP Brandname — bật sau khi brandname "Learnify" được eSMS duyệt
+        # "Brandname": settings.ESMS_BRAND_NAME,
         "IsUnicode": "0",          # 0 = ASCII (đủ dùng cho OTP số)
     }
 
