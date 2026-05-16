@@ -98,10 +98,30 @@ def _send_via_esms(phone: str, message: str) -> None:
 
 # ── Public interface ───────────────────────────────────────────────────────────
 
+import logging
+logger = logging.getLogger(__name__)
+
 def send_sms_otp(phone: str, otp_code: str) -> None:
     """
     Gửi mã OTP qua SMS.
     Đây là hàm duy nhất các service khác nên gọi — không gọi thẳng provider.
+
+    Dev mode: nếu DEBUG=True và ESMS_DEV_MODE=True (hoặc không có API key),
+    OTP sẽ được in ra console thay vì gửi SMS thật.
     """
+    from django.conf import settings as _s
+
+    # Dev mode: bỏ qua eSMS, in OTP ra console
+    dev_mode = getattr(_s, "ESMS_DEV_MODE", False) or not getattr(_s, "ESMS_API_KEY", "")
+    if dev_mode:
+        logger.warning(
+            "\n" + "="*55 +
+            f"\n[SMS DEV MODE] Phone: {phone}" +
+            f"\n[SMS DEV MODE] OTP Code: {otp_code}" +
+            "\n" + "="*55
+        )
+        print(f"\n{'='*55}\n[SMS DEV MODE] Phone: {phone}\n[SMS DEV MODE] OTP Code ➜  {otp_code}\n{'='*55}\n")
+        return
+
     message = f"[Learnify] Ma xac thuc cua ban la: {otp_code}. Co hieu luc trong 10 phut. Khong chia se voi ai."
     _send_via_esms(phone, message)

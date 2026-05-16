@@ -231,6 +231,8 @@ RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "Learnify <no-reply@lear
 ESMS_API_KEY    = os.environ.get("ESMS_API_KEY", "")
 ESMS_SECRET_KEY = os.environ.get("ESMS_SECRET_KEY", "")
 ESMS_BRAND_NAME = os.environ.get("ESMS_BRAND_NAME", "Learnify")
+# Dev mode: in OTP ra console thay vì gửi SMS thật (tắt trên production)
+ESMS_DEV_MODE   = os.environ.get("ESMS_DEV_MODE", "False") == "True"
 
 # ── Supabase Avatars bucket (public) ──────────────────
 SUPABASE_AVATARS_BUCKET = os.environ.get("SUPABASE_AVATARS_BUCKET", "avatars")
