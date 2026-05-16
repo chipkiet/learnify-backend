@@ -49,11 +49,17 @@ def is_valid_vietnamese_phone(phone: str) -> bool:
 def _send_via_esms(phone: str, message: str) -> None:
     """
     Gửi SMS qua eSMS API v4.
-    SmsType = 2 → OTP (qua đầu số doanh nghiệp branded)
+
+    SmsType:
+      2 = OTP Brandname (cần đăng ký thương hiệu trước, mật 1-2 ngày duyệt)
+      4 = Đầu số ngẫu nhiên (đưa vào hoạt động ngay, không cần brandname)
+
+    Hiện dùng SmsType=4 để chạy ngay.
+    Sau khi brandname "Learnify" được duyệt trên eSMS,
+    đổi SmsType thành "2" và bỏ comment ở dòng Brandname để gửi tên thương hiệu.
     """
     api_key    = settings.ESMS_API_KEY
     secret_key = settings.ESMS_SECRET_KEY
-    brand_name = settings.ESMS_BRAND_NAME
 
     if not api_key or not secret_key:
         raise SMSError("eSMS chưa được cấu hình. Kiểm tra ESMS_API_KEY và ESMS_SECRET_KEY trong .env.")
@@ -65,8 +71,8 @@ def _send_via_esms(phone: str, message: str) -> None:
         "SecretKey": secret_key,
         "Phone":     normalized_phone,
         "Content":   message,
-        "SmsType":   "2",          # 2 = OTP Brandname
-        "Brandname": brand_name,
+        "SmsType":   "4",          # 4 = Đầu số ngẫu nhiên (không cần brandname)
+        # "Brandname": settings.ESMS_BRAND_NAME,  # Bỏ comment khi brandname đã được duyệt
         "IsUnicode": "0",          # 0 = ASCII (đủ dùng cho OTP số)
     }
 
