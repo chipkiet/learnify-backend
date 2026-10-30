@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from groq import Groq
 from django.conf import settings
 from apps.ai.services.prompt_builder import build_prompt
@@ -8,7 +9,7 @@ from apps.ai.models import ApiUsageLog
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 VALID_CARD_TYPES = {"vocabulary", "grammar", "phrase", "qa", "qa_en"}
 
@@ -129,6 +130,7 @@ def generate_flashcards(
     all_cards = []
     total_usage_data = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
     successful_chunks = 0
+    last_error = None
 
     chunk_target_cards = max(2, (max_cards + len(chunks) - 1) // len(chunks))
 
@@ -181,6 +183,7 @@ def generate_flashcards(
             successful_chunks += 1
 
         except Exception as e:
+            last_error = str(e)
             logger.warning(f"[Groq] Chunk {i + 1} failed: {e} — skipping")
             continue
 
@@ -191,7 +194,7 @@ def generate_flashcards(
             "raw_response": "",
             "model_used": GROQ_MODEL,
             "usage": total_usage_data,
-            "error": "Tất cả các phần của tài liệu đều sinh flashcard thất bại.",
+            "error": f"Tất cả các phần của tài liệu đều sinh flashcard thất bại. Chi tiết: {last_error}",
         }
 
     if total_usage_data["total_tokens"] > 0:
@@ -208,7 +211,7 @@ def generate_flashcards(
     for card in all_cards:
         card.setdefault("example", "")
         card.setdefault("difficulty", difficulty)
-        if card["card_type"] not in ["vocabulary", "grammar", "phrase", "qa"]:
+        if card["card_type"] not in VALID_CARD_TYPES:
             card["card_type"] = "vocabulary"
 
     # ── Hard dedup ──────────────────────────────────────

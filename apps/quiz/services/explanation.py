@@ -8,12 +8,13 @@ Tổng ~140 tokens/câu sai ≈ $0.00014 — không đáng kể.
 """
 
 import logging
+import os
 from groq import Groq
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-EXPLANATION_MODEL = "llama-3.1-8b-instant"  # Nhỏ hơn, nhanh hơn, đủ dùng
+EXPLANATION_MODEL = os.environ.get("GROQ_EXPLANATION_MODEL", "openai/gpt-oss-20b")
 
 
 def get_explanation(
@@ -71,14 +72,21 @@ Giải thích (tối đa 2 câu):"""
             model=EXPLANATION_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=120,  # Chặt chẽ — chỉ cần 2 câu
+            max_tokens=512,  # Đủ ngân sách cho cả reasoning tokens + 2 câu giải thích
         )
 
-        result = response.choices[0].message.content.strip()
-        logger.info(f"[Quiz:Explanation] OK — {len(result)} chars")
+        result = (response.choices[0].message.content or "").strip()
+        if not result:
+            logger.warning(
+                f"[Quiz:Explanation] Empty content returned from model={EXPLANATION_MODEL} "
+                f"(finish_reason={response.choices[0].finish_reason})"
+            )
+            return ""
+
+        logger.info(f"[Quiz:Explanation] OK ({EXPLANATION_MODEL}) — {len(result)} chars")
         return result
 
     except Exception as e:
         # Không để lỗi AI block việc submit answer
-        logger.warning(f"[Quiz:Explanation] Failed (non-critical): {e}")
+        logger.warning(f"[Quiz:Explanation] Failed (model={EXPLANATION_MODEL}): {e}", exc_info=True)
         return ""
